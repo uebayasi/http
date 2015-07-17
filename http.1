@@ -1,0 +1,146 @@
+.\" Copyright (c) 1985, 1989, 1990, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)ftp.1	8.3 (Berkeley) 10/9/94
+.\"
+.\" Copyright (c) 2015 Sunil Nimmagadda <sunil@nimmagadda.net>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: July 4 2015 $
+.Dt HTTP 1
+.Os
+.Sh NAME
+.Nm http
+.Nd HTTP file transfer program
+.Sh SYNOPSIS
+.Nm
+.Op Fl c Ar cookie
+.Op Fl C
+.Op Fl o Ar output
+.Op Fl P Ar port
+.Op Fl S Ar tls_options
+.Op Fl U Ar useragent
+.Op Fl V
+.Ar ...
+.Sh DESCRIPTION
+.Nm
+allows a user to transfer files from a remote HTTP(S) server.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl c Ar cookie
+Load a Netscape-like cookiejar file for HTTP(S) transfers.
+With this option relevant cookies from the jar are sent with each HTTP(S)
+request.
+Setting the
+.Ev http_cookies
+environment variable has the same effect.
+If both the
+.Ev http_cookies
+environment variable is set and the
+.Fl c
+argument is given, the latter takes precedence.
+.It Fl C
+Continue a previously interrupted file transfer.
+.Nm
+will continue transferring from an offset equal to the length of file.
+.Pp
+Resuming HTTP(S) transfers are only supported
+if the remote server supports the
+.Dq Range
+header.
+.It Fl o Ar output
+When fetching a single file or URL, save the contents in
+.Ar output.
+To make the contents go to stdout, use `-' for
+.Ar output.
+.It Fl P Ar port
+Sets the port number to
+.Ar port .
+.It Fl S Ar tls_options
+TLS options to use with HTTPS transfers.
+The following settings are available:
+.Bl -tag -width Ds
+.It Cm cafile Ns = Ns Ar /path/to/cert.pem
+PEM encoded file containing CA certificates used for certificate
+validation.
+.It Cm capath Ns = Ns Ar /path/to/certs/
+Directory containing PEM encoded CA certificates used for certificate
+validation.
+.It Cm ciphers Ns = Ns Ar cipher_list
+Specify the list of ciphers that will be used by
+.Nm .
+See the
+.Xr openssl 1
+.Cm ciphers
+subcommand.
+.It Cm depth Ns = Ns Ar max_depth
+Maximum depth of the certificate chain allowed when performing
+validation.
+.It Cm dont
+Don't perform server certificate validation.
+.El
+.Pp
+By default, server certificate validation is performed, and if it fails
+.Nm
+will abort.
+If no
+.Cm cafile
+or
+.Cm capath
+setting is provided,
+.Pa /etc/ssl/cert.pem
+will be used.
+.It Fl U Ar useragent
+Set
+.Ar useragent
+as the User-Agent for HTTP(S) URL requests.
+If not specified, the default User-Agent is
+.Dq OpenBSD http .
+.It Fl V
+Disable verbose mode.
+.El
+.Sh ENVIRONMENT
+.Nm
+utilizes the following environment variables:
+.Bl -tag -width Ds
+.It Ev http_proxy
+URL of HTTP proxy to use when making HTTP(S) URL requests.
+.It Ev http_cookies
+Path of Netscape-like cookiejar file to use when making HTTP(S) URL requests.
+.El
