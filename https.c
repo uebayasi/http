@@ -68,15 +68,15 @@ void	 https_retr_file(struct tls *, int, off_t *);
 struct tls_config	*https_init(void);
 
 char * const tls_verify_opts[] = {
-#define TLS_CAFILE	0
+#define HTTP_TLS_CAFILE		0
 	"cafile",
-#define TLS_CAPATH	1
+#define HTTP_TLS_CAPATH		1
 	"capath",
-#define TLS_CIPHERS	2
+#define HTTP_TLS_CIPHERS	2
 	"ciphers",
-#define TLS_DONTVERIFY	3
+#define HTTP_TLS_DONTVERIFY	3
 	"dont",
-#define TLS_VERIFYDEPTH	4
+#define HTTP_TLS_VERIFYDEPTH	4
 	"depth",
 	NULL
 };
@@ -109,29 +109,29 @@ https_init(void)
 
 	while (*tls_options) {
 		switch (getsubopt(&tls_options, tls_verify_opts, &str)) {
-		case TLS_CAFILE:
+		case HTTP_TLS_CAFILE:
 			if (str == NULL)
 				errx(1, "missing CA file");
 			if (tls_config_set_ca_file(tls_config, str) != 0)
 				errx(1, "tls ca file failed");
 			break;
-		case TLS_CAPATH:
+		case HTTP_TLS_CAPATH:
 			if (str == NULL)
 				errx(1, "missing ca path");
 			if (tls_config_set_ca_path(tls_config, str) != 0)
 				errx(1, "tls ca path failed");
 			break;
-		case TLS_CIPHERS:
+		case HTTP_TLS_CIPHERS:
 			if (str == NULL)
 				errx(1, "missing cipher list");
 			if (tls_config_set_ciphers(tls_config, str) != 0)
 				errx(1, "tls set ciphers failed");
 			break;
-		case TLS_DONTVERIFY:
+		case HTTP_TLS_DONTVERIFY:
 			tls_config_insecure_noverifycert(tls_config);
 			tls_config_insecure_noverifyname(tls_config);
 			break;
-		case TLS_VERIFYDEPTH:
+		case HTTP_TLS_VERIFYDEPTH:
 			if (str == NULL)
 				errx(1, "missing depth");
 			depth = strtonum(str, 0, INT_MAX, &errstr);
