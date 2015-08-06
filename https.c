@@ -60,7 +60,9 @@
 #include "http.h"
 #include "progressmeter.h"
 
-int	 https_vprintf(struct tls *, const char *, ...);
+int	 https_vprintf(struct tls *, const char *, ...)
+    __attribute__((__format__ (printf, 2, 3)))
+    __attribute__((__nonnull__ (2)));
 char	*https_getline(struct tls *, size_t *);
 int	 https_parse_headers(struct tls *, struct headers *);
 void	 https_retr_file(struct tls *, int, off_t *);
