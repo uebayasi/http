@@ -362,7 +362,7 @@ again:
 	}
 
 	buf[i] = '\0';
-	if (buf[i - 1] == '\r')
+	if (i && buf[i - 1] == '\r')
 		buf[--i] = '\0';
 
 	*lenp = i;
