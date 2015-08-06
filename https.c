@@ -326,7 +326,13 @@ https_vprintf(struct tls *tls, const char *fmt, ...)
 	}
 
 	va_end(ap);
+again:
 	ret = tls_write(tls, string, ret, &nw);
+	if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
+		goto again;
+	else if (ret != 0)
+		errx(1, "https_vprintf: tls_write: %s", tls_error(tls));
+
 	free(string);
 	return ret;
 }
