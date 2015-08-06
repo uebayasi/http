@@ -290,12 +290,12 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 
 	while (1) {
 		ret = tls_read(tls, buf, TMPBUF_LEN, &r);
-
 		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
 			continue;
-		if (ret != 0)
+		else if (ret != 0) {
 			errx(1, "https_retr_file: tls_read: %s",
 			    tls_error(tls));
+		}
 
 		if (r == 0)
 			break;
