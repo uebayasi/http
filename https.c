@@ -80,6 +80,8 @@ char * const tls_verify_opts[] = {
 	"dont",
 #define HTTP_TLS_VERIFYDEPTH	4
 	"depth",
+#define HTTP_TLS_PROTOCOLS	5
+	"protocols",
 	NULL
 };
 
@@ -92,6 +94,7 @@ https_init(void)
 	extern char		*tls_options;
 	char			*str;
 	int			 depth;
+	uint32_t		 http_tls_protocols;
 	const char		*errstr;
 
 	if (tls_init() != 0)
@@ -132,6 +135,13 @@ https_init(void)
 		case HTTP_TLS_DONTVERIFY:
 			tls_config_insecure_noverifycert(tls_config);
 			tls_config_insecure_noverifyname(tls_config);
+			break;
+		case HTTP_TLS_PROTOCOLS:
+			if (tls_config_parse_protocols(&http_tls_protocols,
+			    str) != 0)
+				errx(1, "tls parsing protocols failed");
+			tls_config_set_protocols(tls_config,
+			    http_tls_protocols);
 			break;
 		case HTTP_TLS_VERIFYDEPTH:
 			if (str == NULL)

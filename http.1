@@ -114,6 +114,14 @@ Maximum depth of the certificate chain allowed when performing
 validation.
 .It Cm dont
 Don't perform server certificate validation.
+.It Cm protocols Ns = Ns Ar string
+Specify the TLS protocols to use.
+If not specified the value
+.Qq all
+is used.
+Refer to the
+.Xr tls_config_parse_protocols 3
+function for other valid protocol string values.
 .El
 .Pp
 By default, server certificate validation is performed, and if it fails
