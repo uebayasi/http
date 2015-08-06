@@ -350,7 +350,7 @@ https_getline(struct tls *tls, size_t *lenp)
 		}
 again:
 		ret = tls_read(tls, &c, 1, &nr);
-		if (ret == TLS_READ_AGAIN)
+		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
 			goto again;
 
 		if (ret != 0)
