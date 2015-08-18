@@ -198,6 +198,16 @@ url_parse(const char *url_str, struct url *url, int proto)
 	else
 		s = curl;
 
+	/* extract url path */
+	if ((e = strchr(s, '/'))) {
+		if (strlcpy(url->path, e,
+		    sizeof(url->path)) >= sizeof(url->path)) {
+			warnx("url_parse: path overflow");
+			goto cleanup;
+		}
+		*e = '\0';
+	}
+
 	/* extract user and password */
 	if ((e = strchr(s, '@'))) {
 		*e++ = '\0';
@@ -219,16 +229,6 @@ url_parse(const char *url_str, struct url *url, int proto)
 		}
 
 		s = e;
-	}
-
-	/* extract url path */
-	if ((e = strchr(s, '/'))) {
-		if (strlcpy(url->path, e,
-		    sizeof(url->path)) >= sizeof(url->path)) {
-			warnx("url_parse: path overflow");
-			goto cleanup;
-		}
-		*e = '\0';
 	}
 
 	/* extract url port */
