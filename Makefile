@@ -1,4 +1,4 @@
-# Define SMALL to disable https support
+# Define SMALL to disable https and ftp support
 .if defined(SMALL)
 CFLAGS+=	-DSMALL 
 .endif

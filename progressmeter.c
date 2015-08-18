@@ -43,6 +43,8 @@
 #define UPDATE_INTERVAL 1	/* update the progress meter every second */
 #define STALL_TIME 5		/* we're stalled after this many seconds */
 
+time_t	monotime(void);
+
 /* determines whether we can output to the terminal */
 static int can_output(void);
 
@@ -84,8 +86,8 @@ can_output(void)
 	dumb_terminal = (term == NULL || *term == '\0' ||
 	    !strcmp(term, "dumb") || !strcmp(term, "emacs") ||
 	    !strcmp(term, "su"));
-	return (getpgrp() == tcgetpgrp(STDOUT_FILENO) &&
-	    isatty(STDOUT_FILENO) && !dumb_terminal);
+	return (getpgrp() == tcgetpgrp(STDERR_FILENO) &&
+	    isatty(STDERR_FILENO) && !dumb_terminal);
 }
 
 time_t
@@ -115,7 +117,7 @@ format_rate(char *buf, int size, off_t bytes)
 	    (long long) (bytes + 5) / 100,
 	    (long long) (bytes + 5) / 10 % 10,
 	    unit[i],
-	    i ? "B" : " ");
+	    "B");
 }
 
 static void
@@ -235,7 +237,7 @@ refresh_progress_meter(void)
 			strlcat(buf, "    ", win_size);
 	}
 
-	write(STDOUT_FILENO, buf, win_size - 1);
+	write(STDERR_FILENO, buf, win_size - 1);
 	last_update = now;
 }
 
@@ -297,14 +299,14 @@ stop_progress_meter(void)
 		refresh_progress_meter();
 
 	if (end_pos && can_output())
-		write(STDOUT_FILENO, "\n", 1);
+		write(STDERR_FILENO, "\n", 1);
 
 	if (!verbose)
 		return;
 
 	format_rate(rate_str, sizeof(rate_str), bytes_per_second);
 	elapsed = monotime() - start;
-	printf("%lld bytes received in %.2f seconds %s%s%s%s\n",
+	fprintf(stderr, "%lld bytes received in %.2f seconds %s%s%s%s\n",
 	    (end_pos) ? cur_pos : *counter,
 	    elapsed,
 	    (end_pos) ? "(" : "",

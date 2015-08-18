@@ -59,17 +59,12 @@
 #include "http.h"
 #include "progressmeter.h"
 
-int	 https_connect(struct url *, struct url *);
-int	 https_get(struct url *, const char *, int, struct headers *);
 int	 https_vprintf(struct tls *, const char *, ...);
 char	*https_getline(struct tls *, size_t *);
 int	 https_parse_headers(struct tls *, struct headers *);
-void	 https_ok(struct tls *, int, off_t *);
+void	 https_retr_file(struct tls *, int, off_t *);
 
-struct proto proto_https = {
-	https_connect,
-	https_get
-};
+struct tls_config	*https_init(void);
 
 char * const tls_verify_opts[] = {
 #define TLS_CAFILE	0
@@ -201,13 +196,12 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 
 	counter = 0;
 	if (resume) {
-		if (stat(out_fn, &sb) == -1)
-			resume = 0;
-		else {
+		if (stat(out_fn, &sb) == 0) {
 			counter = sb.st_size;
 			snprintf(range, sizeof(range),
 			    "Range: bytes=%lld-\r\n", sb.st_size);
-		}
+		} else
+			resume = 0;
 	}
 
 	if (url->user[0] || url->pass[0])
@@ -246,22 +240,26 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	}
 
 	flags = O_CREAT | O_WRONLY;
-	if (!resume)
+	if (resume && (res == 206))
+		flags |= O_APPEND;
+	else {
 		flags |= O_TRUNC;
+		counter = 0;
+	}
 
 	switch (res) {
 	case 206:	/* Partial content */
-		flags |= O_APPEND;
-		/* FALLTHROUGH */
 	case 200:	/* OK */
 		if (strcmp(out_fn, "-") == 0)
 			fd = STDOUT_FILENO;
 		else if ((fd = open(out_fn, flags, 0666)) == -1)
 			err(1, "https_get: open %s", out_fn);
 
-		start_progress_meter(hdrs->c_len, &counter);
-		https_ok(ctx, fd, &counter);
+		start_progress_meter(hdrs->c_len + counter, &counter);
+		https_retr_file(ctx, fd, &counter);
 		stop_progress_meter();
+		if (fd != STDOUT_FILENO)
+			close(fd);
 		break;
 	}
 
@@ -273,7 +271,7 @@ cleanup:
 }
 
 void
-https_ok(struct tls *ctx, int out, off_t *ctr)
+https_retr_file(struct tls *tls, int out, off_t *ctr)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
@@ -283,16 +281,15 @@ https_ok(struct tls *ctx, int out, off_t *ctr)
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
 		if (buf == NULL)
-			err(1, "https_ok: malloc");
+			err(1, "https_retr_file: malloc");
 	}
 
-	while (tls_read(ctx, buf, TMPBUF_LEN, &r) == 0 && r > 0) {
+	while (tls_read(tls, buf, TMPBUF_LEN, &r) == 0 && r > 0) {
 		*ctr += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
-			if ((i = write(out, cp, wlen)) == -1) {
-				warn("https_ok: write");
-				break;
-			} else if (i == 0)
+			if ((i = write(out, cp, wlen)) == -1)
+				err(1, "https_retr_file: write");
+			else if (i == 0)
 				break;
 		}
 	}
@@ -307,8 +304,10 @@ https_vprintf(struct tls *tls, const char *fmt, ...)
 	int	 ret;
 
 	va_start(ap, fmt);
-	if ((ret = vasprintf(&string, fmt, ap)) == -1)
+	if ((ret = vasprintf(&string, fmt, ap)) == -1) {
+		va_end(ap);
 		return ret;
+	}
 
 	va_end(ap);
 	ret = tls_write(tls, string, ret, &nw);
@@ -357,13 +356,14 @@ again:
 }
 
 int
-https_parse_headers(struct tls *ctx, struct headers *hdrs)
+https_parse_headers(struct tls *tls, struct headers *hdrs)
 {
 	char		*buf;
 	size_t		 len;
 	int		 ret;
 
-	while ((buf = https_getline(ctx, &len))) {
+	ret = 0;
+	while ((buf = https_getline(tls, &len))) {
 		if (len == 0)
 			break; /* end of headers */
 
@@ -371,9 +371,10 @@ https_parse_headers(struct tls *ctx, struct headers *hdrs)
 			ret = -1;
 			goto exit;
 		}
+
+		free(buf);
 	}
 
-	ret = 0;
 exit:
 	free(buf);
 	return (ret);

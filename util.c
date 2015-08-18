@@ -49,6 +49,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
@@ -59,6 +60,9 @@
 #include <unistd.h>
 
 #include "http.h"
+
+const char	*proto_str(int);
+int		 unsafe_char(const char *);
 
 int
 tcp_connect(const char *host, const char *port)
@@ -189,8 +193,11 @@ url_parse(const char *url_str, struct url *url, int proto)
 	if ((curl = strdup(url_str)) == NULL)
 		err(1, "url_parse: strdup");
 
-	s = strstr(curl, "//");
-	s += 2;
+	if ((s = strstr(curl, "//")) != NULL)
+		s += 2;
+	else
+		s = curl;
+
 	/* extract user and password */
 	if ((e = strchr(s, '@'))) {
 		*e++ = '\0';
@@ -211,8 +218,7 @@ url_parse(const char *url_str, struct url *url, int proto)
 			}
 		}
 
-		if ((s = e) == NULL)
-			goto cleanup;
+		s = e;
 	}
 
 	/* extract url path */
@@ -253,7 +259,7 @@ header_insert(struct headers *hdrs, const char *buf)
 	const char	*errstr;
 	size_t		 sz;
 
-	if (strncasecmp(buf, "Content-Length:", 15) == 0) {
+	if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
 		buf = strchr(buf, ' ');
 		buf++;
 		hdrs->c_len = strtonum(buf, 0, LLONG_MAX, &errstr);
@@ -263,7 +269,7 @@ header_insert(struct headers *hdrs, const char *buf)
 		}
 	}
 
-	if (strncasecmp(buf, "Location:", 8) == 0) {
+	if (strncasecmp(buf, "Location: ", 9) == 0) {
 		buf = strchr(buf, ' ');
 		buf++;
 		sz = strlcpy(hdrs->location, buf, sizeof(hdrs->location));
@@ -276,6 +282,40 @@ header_insert(struct headers *hdrs, const char *buf)
 	return (0);
 }
 
+void
+retr_file(FILE *fin, const char *out_fn, int flags, off_t *ctr)
+{
+	size_t		 r, wlen;
+	ssize_t		 i;
+	char		*cp;
+	static char	*buf;
+	int		 out;
+
+	if (strcmp(out_fn, "-") == 0)
+		out = STDOUT_FILENO;
+	else if ((out = open(out_fn, flags, 0666)) == -1)
+		err(1, "http_get: open %s", out_fn);
+
+	if (buf == NULL) {
+		buf = malloc(TMPBUF_LEN); /* allocate once */
+		if (buf == NULL)
+			err(1, "retr_file: malloc");
+	}
+
+	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fin)) > 0) {
+		*ctr += r;
+		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
+			if ((i = write(out, cp, wlen)) == -1)
+				err(1, "retr_file: write");
+			else if (i == 0)
+				break;
+		}
+	}
+
+	if (out != STDOUT_FILENO)
+		close(out);
+}
+
 const char *
 base64_encode(const char *user, const char *pass)
 {
@@ -286,7 +326,8 @@ base64_encode(const char *user, const char *pass)
 	if ((ret = asprintf(&creds, "%s:%s", user, pass)) == -1)
 		errx(1, "base64_encode: asprintf failed");
 
-	if (b64_ntop(creds, ret, b64_creds, sizeof(b64_creds)) == -1)
+	if (b64_ntop((unsigned char *)creds, ret,
+	    b64_creds, sizeof(b64_creds)) == -1)
 		errx(1, "error in base64 encoding");
 
 	free(creds);
@@ -331,7 +372,7 @@ log_request(struct url *url, struct url *proxy)
 	if (proxy)
 		log_info("Requesting %s://%s%s%s%s%s%s%s"
 		    " (via %s://%s%s%s%s%s%s)\n",
-		    (url->proto == HTTP) ? "http" : "https",
+		    proto_str(url->proto),
 		    (url->user[0]) ? url->user : "",
 		    (url->pass[0]) ? ":*****" : "",
 		    (url->user[0] || url->pass[0]) ? "@" : "",
@@ -350,7 +391,7 @@ log_request(struct url *url, struct url *proxy)
 		    (proxy->port[0]) ? proxy->port : "");
 	else
 		log_info("Requesting %s://%s%s%s%s%s%s%s\n",
-		    (url->proto == HTTP) ? "http" : "https",
+		    proto_str(url->proto),
 		    (url->user[0]) ? url->user : "",
 		    (url->pass[0]) ? ":*****" : "",
 		    (url->user[0] || url->pass[0]) ? "@" : "",
@@ -361,7 +402,22 @@ log_request(struct url *url, struct url *proxy)
 }
 
 const char *
-errstr(int code)
+proto_str(int proto)
+{
+	switch (proto) {
+	case HTTP:
+		return ("http");
+	case HTTPS:
+		return ("https");
+	case FTP:
+		return ("ftp");
+	}
+
+	return ("???");
+}
+
+const char *
+http_errstr(int code)
 {
 	static char buf[32];
 

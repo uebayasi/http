@@ -19,14 +19,12 @@
 #define	HTTP	1
 #define HTTPS	2
 #define FTP	3
-#define UNDEF	4
 
 struct headers {
 	char	location[BUFSIZ];	/* Redirect Location */
 	off_t	c_len;			/* Content-Length */
 };
 
-/* http://<user>:<pass>@<host>:<port>/<path> */
 struct url {
 	char	host[HOST_NAME_MAX+1];
 	char	port[16];
@@ -36,28 +34,34 @@ struct url {
 	int	proto;
 };
 
-struct proto {
-	int (*connect)(struct url *, struct url *);
-	int (*get)(struct url *, const char *, int, struct headers *);
-};
-
 /* http.c */
-int		 http_connect(struct url *, struct url *);
-int		 http_response_code(char *);
-
-#ifndef SMALL
-/* cookie.c */
-void	cookie_load(void);
-void	cookie_get(const char *, const char *, int, char **);
-#endif
+int	 http_connect(struct url *, struct url *);
+int	 http_get(struct url *, const char *, int, struct headers *);
+char	*http_response(FILE *, size_t *);
+int	 http_response_code(char *);
 
 /* util.c */
 int		 tcp_connect(const char *, const char *);
 int		 header_insert(struct headers *, const char *);
 void		 log_info(const char *, ...);
 void		 log_request(struct url *, struct url *);
+void	 	 retr_file(FILE *, const char *, int, off_t *);
 char		*url_encode(const char *);
 int		 url_parse(const char *, struct url *, int);
-const char	*errstr(int);
+const char	*http_errstr(int);
 const char	*base64_encode(const char *, const char *);
+
+#ifndef SMALL
+/* cookie.c */
+void	cookie_load(void);
+void	cookie_get(const char *, const char *, int, char **);
+
+/* https.c */
+int	https_connect(struct url *, struct url *);
+int	https_get(struct url *, const char *, int, struct headers *);
+
+/* ftp.c */
+int	ftp_connect(struct url *, struct url *);
+int	ftp_get(struct url *, const char *,int, struct headers *);
+#endif
 

@@ -28,16 +28,9 @@
 #include "http.h"
 #include "progressmeter.h"
 
-int	 http_get(struct url *, const char *, int, struct headers *);
-char	*http_getline(FILE *, size_t *);
-int	 http_parse_headers(FILE *, struct headers *);
-void	 http_ok(FILE *, int, off_t *);
-int	 proxy_connect(int, struct url *, struct url *);
-
-struct proto proto_http = {
-	http_connect,
-	http_get
-};
+void	http_init(void);
+int	http_parse_headers(FILE *, struct headers *);
+int	proxy_connect(int, struct url *, struct url *);
 
 extern const char	*ua;
 static int		 s = -1;
@@ -62,11 +55,11 @@ http_connect(struct url *url, struct url *proxy)
 		init = 1;
 	}
 
+	if (url->port[0] == '\0')
+		(void)strlcpy(url->port, "80", sizeof(url->port));
+
 	host = (proxy) ? proxy->host : url->host;
 	port = (proxy) ? proxy->port : url->port;
-
-	if (port[0] == '\0')
-		(void)strlcpy(url->port, "80", sizeof(url->port));
 
 	if ((s = tcp_connect(host, port)) == -1)
 		return (-1);
@@ -78,7 +71,7 @@ http_connect(struct url *url, struct url *proxy)
 }
 
 int
-proxy_connect(int s, struct url *url, struct url *proxy)
+proxy_connect(int sock, struct url *url, struct url *proxy)
 {
 	FILE		*fp;
 	char		*buf;
@@ -86,8 +79,8 @@ proxy_connect(int s, struct url *url, struct url *proxy)
 	size_t		 len;
 	int		 code;
 
-	if ((fp = fdopen(s, "r+")) == NULL)
-		err(1, "http_connect: fdopen");
+	if ((fp = fdopen(sock, "r+")) == NULL)
+		err(1, "proxy_connect: fdopen");
 
 	if (proxy->user[0] || proxy->pass[0])
 		proxy_auth = base64_encode(proxy->user, proxy->pass);
@@ -99,14 +92,14 @@ proxy_connect(int s, struct url *url, struct url *proxy)
 	    "%s%s"
 	    "\r\n",
 	    url->host,
-	    (url->port[0]) ? url->port : "80",
+	    url->port,
 	    url->host,
 	    ua,
 	    (proxy_auth) ? "Proxy-Authorization: Basic " : "",
 	    (proxy_auth) ? proxy_auth : "");
 
 	fflush(fp);
-	if ((buf = http_getline(fp, &len)) == NULL)
+	if ((buf = http_response(fp, &len)) == NULL)
 		return (-1);
 
 	if ((code = http_response_code(buf)) == -1) {
@@ -116,7 +109,7 @@ proxy_connect(int s, struct url *url, struct url *proxy)
 
 	free(buf);
 	if (code != 200)
-		errx(1, "Error retrieving file: %s", errstr(code));
+		errx(1, "Error retrieving file: %s", http_errstr(code));
 
 	return (0);
 }
@@ -134,20 +127,19 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	char		*cookie;
 #endif
 	size_t		 len;
-	int		 fd, flags, res = -1;
+	int		 flags, res = -1;
 
 	if ((fin = fdopen(s, "r+")) == NULL)
 		err(1, "http_get: fdopen");
 
 	counter = 0;
 	if (resume) {
-		if (stat(out_fn, &sb) == -1)
-			resume = 0;
-		else {
+		if (stat(out_fn, &sb) == 0) {
 			counter = sb.st_size;
 			snprintf(range, sizeof(range),
 			    "Range: bytes=%lld-\r\n", sb.st_size);
-		}
+		} else
+			resume = 0;
 	}
 
 	if (url->user[0] || url->pass[0])
@@ -179,7 +171,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	    );
 
 	fflush(fin);
-	if ((buf = http_getline(fin, &len)) == NULL)
+	if ((buf = http_response(fin, &len)) == NULL)
 		goto cleanup;
 
 	if ((res = http_response_code(buf)) == -1) {
@@ -194,77 +186,47 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	}
 
 	flags = O_CREAT | O_WRONLY;
-	if (!resume)
+	if (resume && (res == 206))
+		flags |= O_APPEND;
+	else {
 		flags |= O_TRUNC;
+		counter = 0;
+	}
 
 	switch (res) {
 	case 206:	/* Partial content */
-		flags |= O_APPEND;
-		/* FALLTHROUGH */
 	case 200:	/* OK */
-		if (strcmp(out_fn, "-") == 0)
-			fd = STDOUT_FILENO;
-		else if ((fd = open(out_fn, flags, 0666)) == -1)
-			err(1, "http_get: open %s", out_fn);
-
-		start_progress_meter(hdrs->c_len, &counter);
-		http_ok(fin, fd, &counter);
+		start_progress_meter(hdrs->c_len + counter, &counter);
+		retr_file(fin, out_fn, flags, &counter);
 		stop_progress_meter();
 		break;
 	}
-
 
 cleanup:
 	fclose(fin);
 	return (res);
 }
 
-void
-http_ok(FILE *fin, int out, off_t *ctr)
-{
-	size_t		 r, wlen;
-	ssize_t		 i;
-	char		*cp;
-	static char	*buf;
-
-	if (buf == NULL) {
-		buf = malloc(TMPBUF_LEN); /* allocate once */
-		if (buf == NULL)
-			err(1, "http_ok: malloc");
-	}
-
-	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fin)) > 0) {
-		*ctr += r;
-		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
-			if ((i = write(out, cp, wlen)) == -1) {
-				warn("http_ok: write");
-				break;
-			} else if (i == 0)
-				break;
-		}
-	}
-}
-
 int
 http_response_code(char *buf)
 {
 	const char	*errstr;
-	char		*e;
+	char		*p, *q;
 	int		 res;
 
-	if ((buf = strchr(buf, ' ')) == NULL) {
+	if ((p= strchr(buf, ' ')) == NULL) {
 		warnx("http_response_code: Malformed response");
 		return (-1);
 	}
 
-	buf++;
-	if ((e = strchr(buf, ' ')) == NULL) {
+	p++;
+	if ((q = strchr(p, ' ')) == NULL) {
 		warnx("http_response_code: Malformed response");
 		return (-1);
 	}
 
-	*e = '\0';
-	res = strtonum(buf, 200, 503, &errstr);
+	*q = '\0';
+	res = strtonum(p, 200, 503, &errstr);
 	if (errstr) {
 		warn("http_response_code: strtonum");
 		return (-1);
@@ -280,7 +242,7 @@ http_parse_headers(FILE *fin, struct headers *hdrs)
 	size_t		 len;
 	int		 ret;
 
-	while ((buf = http_getline(fin, &len))) {
+	while ((buf = http_response(fin, &len))) {
 		if (len == 0)
 			break; /* end of headers */
 
@@ -297,13 +259,13 @@ exit:
 }
 
 char *
-http_getline(FILE *fp, size_t *len)
+http_response(FILE *fp, size_t *len)
 {
 	char	*buf;
 	size_t	 ln;
 
 	if ((buf = fparseln(fp, &ln, NULL, "\0\0\0", 0)) == NULL) {
-		warn("http_getline");
+		warn("http_response");
 		return (NULL);
 	}
 

@@ -41,7 +41,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 4 2015 $
+.Dd $Mdocdate: August 13 2015 $
 .Dt HTTP 1
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@
 .Ar ...
 .Sh DESCRIPTION
 .Nm
-allows a user to transfer files from a remote HTTP(S) server.
+allows a user to transfer files from a remote HTTP(S) or FTP server.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -85,7 +85,7 @@ if the remote server supports the
 .Dq Range
 header.
 .It Fl o Ar output
-When fetching a single file or URL, save the contents in
+When fetching a file or URL, save the contents in
 .Ar output.
 To make the contents go to stdout, use `-' for
 .Ar output.

@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "http.h"
+
 struct cookie {
 	TAILQ_ENTRY(cookie)	 entry;
 	TAILQ_ENTRY(cookie)	 tempentry;

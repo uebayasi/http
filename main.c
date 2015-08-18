@@ -29,10 +29,11 @@
 #define USER_AGENT	"OpenBSD http"
 #define MAX_RETRIES	10
 
-char		*abs_url_str(char *, struct url *);
-struct proto	*lookup(int);
-int		 proto_type(const char *);
-void		 usage(void);
+char	*absolute_url(char *, struct url *);
+int	 url_connect(struct url *, struct url *);
+int	 url_get(struct url *, const char *, int, struct headers *);
+int	 url_type(const char *);
+void	 usage(void);
 
 #ifndef SMALL
 const char	*cookiefile;
@@ -46,7 +47,6 @@ main(int argc, char *argv[])
 {
 	struct url	 url, proxy, *pproxy = NULL;
 	struct headers	 res_hdrs;
-	struct proto	*proto;
 	char		*proxy_str, *url_str;
 	const char	*fn, *output = NULL, *port = NULL;
 	int		 ch, code, i, p, resume = 0, retries = 0;
@@ -94,38 +94,39 @@ main(int argc, char *argv[])
 		proxy_str = NULL;
 
 	if (proxy_str) {
-		p = proto_type(proxy_str);
-		if (p == UNDEF)
-			errx(1, "Unknown proxy protocol: %s\n", proxy_str);
-		else if (p == FTP)
+		p = url_type(proxy_str);
+		if (p == FTP)
 			errx(1, "Invalid proxy protocol: %s\n", proxy_str);
 
 		if (url_parse(proxy_str, &proxy, p) != 0)
 			errx(1, "Malformed proxy URL: %s", proxy_str);
 		else
 			pproxy = &proxy;
+
+		if (proxy.port[0] == '\0')
+			(void)strlcpy(proxy.port, "80", sizeof(proxy.port));
 	}
 
 	for (i = 0; i < argc; i++) {
 retry:
 		fn = (output) ? output : basename(argv[i]);
 		url_str = url_encode(argv[i]);
-		if ((p = proto_type(url_str)) == UNDEF)
-			errx(1, "Unknown protocol: %s\n", argv[i]);
-
+		p = url_type(url_str);
 		if (url_parse(url_str, &url, p) != 0)
 			errx(1, "Malformed URL: %s", url_str);
 
 		if (p == FTP && port)
 			(void)strlcpy(url.port, port, sizeof(url.port));
 
-		proto = lookup(p);
-		if (proto->connect(&url, pproxy) == -1)
+		if (strcmp(url.path, "/") == 0 || strlen(url.path) == 0)
+			errx(1, "No filename afer host: %s", url.host);
+
+		if (url_connect(&url, pproxy) == -1)
 			return (-1);
 
 		log_request(&url, pproxy);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
-		code = proto->get(&url, fn, resume, &res_hdrs);
+		code = url_get(&url, fn, resume, &res_hdrs);
 		switch (code) {
 		case 200:	/* OK */
 		case 206:	/* Partial Content */
@@ -139,7 +140,7 @@ retry:
 
 			/* Relative redirects to absolute URL */
 			if (res_hdrs.location[0] == '/')
-				argv[i] = abs_url_str(res_hdrs.location, &url);
+				argv[i] = absolute_url(res_hdrs.location, &url);
 			else
 				argv[i] = res_hdrs.location;
 
@@ -151,7 +152,7 @@ retry:
 			warnx("File is already fully retrieved");
 			break;
 		default:
-			errx(1, "Error retrieving file: %s", errstr(code));
+			errx(1, "Error retrieving file: %s", http_errstr(code));
 		}
 
 		retries = 0;
@@ -162,7 +163,7 @@ retry:
 }
 
 char *
-abs_url_str(char *url_str, struct url *orig_url)
+absolute_url(char *url_str, struct url *orig_url)
 {
 	static char	abs_url[BUFSIZ];
 	int		ret;
@@ -179,46 +180,71 @@ abs_url_str(char *url_str, struct url *orig_url)
 	return (abs_url);
 }
 
-struct proto *
-lookup(int p)
-{
-	extern struct proto proto_http;
-#ifndef SMALL
-	extern struct proto proto_https;
-	extern struct proto proto_ftp;
-#endif
-
-	switch (p) {
-	case HTTP:
-		return (&proto_http);
-#ifndef SMALL
-	case HTTPS:
-		return (&proto_https);
-	case FTP:
-		return (&proto_ftp);
-#endif
-	}
-
-	errx(1, "Invalid proto %d\n", p);
-	return (NULL);
-}
-
 int
-proto_type(const char *url)
+url_type(const char *url)
 {
+	int type;
+
 	while (isblank((unsigned char)*url))
 		url++;
 
-	if (strncasecmp(url, "http://", 7) == 0)
-		return (HTTP);
-#ifndef SMALL
-	else if (strncasecmp(url, "https://", 8) == 0)
-		return (HTTPS);
-	else if (strncasecmp(url, "ftp://", 6) == 0)
-		return (FTP);
+#ifdef SMALL
+	if (strstr(url, "//") && strncasecmp(url, "http://", 7))
+		errx(1, "Unknown protocol");
 #endif
-	else
-		return (UNDEF);
+
+	type = HTTP; /* Defaults to HTTP */
+
+#ifndef SMALL
+	if (strncasecmp(url, "https://", 8) == 0)
+		type = HTTPS;
+	else if (strncasecmp(url, "ftp://", 6) == 0)
+		type = FTP;
+#endif
+	return (type);
+}
+
+int
+url_connect(struct url *url, struct url *proxy)
+{
+	int ret;
+
+	switch (url->proto) {
+	case HTTP:
+		ret = http_connect(url, proxy);
+		break;
+#ifndef SMALL
+	case HTTPS:
+		ret = https_connect(url, proxy);
+		break;
+	case FTP:
+		if ((ret = ftp_connect(url, proxy)) == -1)
+			errx(1, "Can't connect or login to host `%s'",
+			    url->host);
+		break;
+#endif
+	default:
+		errx(1, "url_connect: Invalid protocol");
+	}
+
+	return (ret);
+}
+
+int
+url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
+{
+	switch (url->proto) {
+	case HTTP:
+		return http_get(url, fn, resume, hdrs);
+#ifndef SMALL
+	case HTTPS:
+		return https_get(url, fn, resume, hdrs);
+	case FTP:
+		return ftp_get(url, fn, resume, hdrs);
+#endif
+	default:
+		errx(1, "url_get: Invalid protocol");
+	}
 }
 
 void
