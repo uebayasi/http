@@ -108,8 +108,8 @@ main(int argc, char *argv[])
 	}
 
 	for (i = 0; i < argc; i++) {
-retry:
 		fn = (output) ? output : basename(argv[i]);
+retry:
 		url_str = url_encode(argv[i]);
 		p = url_type(url_str);
 		if (url_parse(url_str, &url, p) != 0)
