@@ -119,7 +119,7 @@ retry:
 			(void)strlcpy(url.port, port, sizeof(url.port));
 
 		if (strcmp(url.path, "/") == 0 || strlen(url.path) == 0)
-			errx(1, "No filename afer host: %s", url.host);
+			errx(1, "No filename after host: %s", url.host);
 
 		if (url_connect(&url, pproxy) == -1)
 			return (-1);
