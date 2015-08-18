@@ -116,7 +116,9 @@ retry:
 			errx(1, "Malformed URL: %s", url_str);
 
 		if (p == FTP && port)
-			(void)strlcpy(url.port, port, sizeof(url.port));
+			if (strlcpy(url.port, port, sizeof(url.port))
+			    >= sizeof(url.port))
+				errx(1, "port overflow: %s", port);
 
 		if (strcmp(url.path, "/") == 0 || strlen(url.path) == 0)
 			errx(1, "No filename after host: %s", url.host);
