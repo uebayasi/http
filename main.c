@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 
 	if (proxy_str) {
 		p = url_type(proxy_str);
-		if (p == FTP)
+		if (p != HTTP)
 			errx(1, "Invalid proxy protocol: %s\n", proxy_str);
 
 		if (url_parse(proxy_str, &proxy, p) != 0)
