@@ -269,7 +269,7 @@ header_insert(struct headers *hdrs, const char *buf)
 		}
 	}
 
-	if (strncasecmp(buf, "Location: ", 9) == 0) {
+	if (strncasecmp(buf, "Location: ", 10) == 0) {
 		buf = strchr(buf, ' ');
 		buf++;
 		sz = strlcpy(hdrs->location, buf, sizeof(hdrs->location));
