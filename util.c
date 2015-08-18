@@ -305,9 +305,10 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t *ctr)
 	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fin)) > 0) {
 		*ctr += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
-			if ((i = write(out, cp, wlen)) == -1)
-				err(1, "retr_file: write");
-			else if (i == 0)
+			if ((i = write(out, cp, wlen)) == -1) {
+				if (errno != EINTR)
+					err(1, "retr_file: write");
+			} else if (i == 0)
 				break;
 		}
 	}
