@@ -204,7 +204,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	char			*cookie, *buf;
 	off_t			 counter;
 	size_t			 len;
-	int			 fd, flags, res = -1;
+	int			 fd, flags, res = -1, ret;
 	extern const char	*ua;
 
 	counter = 0;
@@ -278,7 +278,10 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 
 cleanup:
 	free(buf);
-	tls_close(ctx);
+	while ((ret = tls_close(ctx)) != 0)
+		if (ret != TLS_READ_AGAIN && ret != TLS_WRITE_AGAIN)
+			errx(1, "https_get: tls_close: %s", tls_error(ctx));
+
 	tls_free(ctx);
 	return (res);
 }
