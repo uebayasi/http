@@ -278,6 +278,7 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 	ssize_t		 i;
 	char		*cp;
 	static char	*buf;
+	int		 ret;
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
@@ -285,7 +286,18 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 			err(1, "https_retr_file: malloc");
 	}
 
-	while (tls_read(tls, buf, TMPBUF_LEN, &r) == 0 && r > 0) {
+	while (1) {
+		ret = tls_read(tls, buf, TMPBUF_LEN, &r);
+
+		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
+			continue;
+		if (ret != 0)
+			errx(1, "https_retr_file: tls_read: %s",
+			    tls_error(tls));
+
+		if (r == 0)
+			break;
+
 		*ctr += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
 			if ((i = write(out, cp, wlen)) == -1) {
