@@ -303,6 +303,8 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t *ctr)
 	}
 
 	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fin)) > 0) {
+		if (ferror(fin))
+			err(1, "retr_file: fread");
 		*ctr += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
 			if ((i = write(out, cp, wlen)) == -1) {
@@ -312,6 +314,8 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t *ctr)
 				break;
 		}
 	}
+	if (ferror(fin))
+		err(1, "retr_file: fread");
 
 	if (out != STDOUT_FILENO)
 		close(out);
