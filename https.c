@@ -47,6 +47,7 @@
 #include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -287,9 +288,10 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 	while (tls_read(tls, buf, TMPBUF_LEN, &r) == 0 && r > 0) {
 		*ctr += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
-			if ((i = write(out, cp, wlen)) == -1)
-				err(1, "https_retr_file: write");
-			else if (i == 0)
+			if ((i = write(out, cp, wlen)) == -1) {
+				if (errno != EINTR)
+					err(1, "https_retr_file: write");
+			} else if (i == 0)
 				break;
 		}
 	}
