@@ -228,25 +228,29 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 off_t
 ftp_size(const char *fn)
 {
-	const char	*errstr;
 	char		*buf, *s;
 	off_t	 	 file_sz;
+	int		 old_verbose;
+	extern int	 verbose;
 
+	old_verbose = verbose;
+	verbose = 0;
+	file_sz = 0;
 	fprintf(ctrl_fin, "SIZE %s\r\n", fn);
 	fflush(ctrl_fin);
 	if ((buf = ftp_response()) == NULL)
-		return (0);
+		goto exit;
 
-	file_sz = 0;
 	if (buf[0] == '2') {
 		if ((s = strchr(buf, ' ')) != NULL) {
 			s++;
-			file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
-			if (errstr)
-				warn("ftp_get: strtonum: %s", errstr);
+			file_sz = strtonum(s, 0, LLONG_MAX, NULL);
 		}
 	}
+
 	free(buf);
+exit:
+	verbose = old_verbose;
 	return (file_sz);
 }
 
