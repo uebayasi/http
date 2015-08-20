@@ -253,11 +253,11 @@ void
 usage(void)
 {
 #ifndef SMALL
-	fprintf(stderr, "usage: %s [-C] [-c cookie] [-o output] "
+	fprintf(stderr, "usage: %s [-CV] [-c cookie] [-o output] "
 	    "[-P port] [-S tls_options ] [-U useragent] url ...\n",
 	    getprogname());
 #else
-	fprintf(stderr, "usage: %s [-C] [-o output] "
+	fprintf(stderr, "usage: %s [-CV] [-o output] "
 	    "[-P port] [-U useragent] url ...\n", getprogname());
 #endif
 	exit(0);
