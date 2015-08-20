@@ -154,7 +154,7 @@ retry:
 			warnx("File is already fully retrieved");
 			break;
 		default:
-			errx(1, "Error retrieving file: %s", http_errstr(code));
+			return (code);
 		}
 
 		retries = 0;

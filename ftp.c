@@ -105,7 +105,7 @@ interpret_command(struct url *url)
 	FILE		*data_fin;
 	char		*line;
 	size_t		 len;
-	int		 data_sock;
+	int		 data_sock, ret;
 
 	if ((line = fparseln(stdin, &len, NULL, "\0\0\0", 0)) == NULL)
 		exit(-1);
@@ -139,8 +139,10 @@ interpret_command(struct url *url)
 	fprintf(ctrl_fin, "NLST\r\n");
 	fflush(ctrl_fin);
 	/* Data connection established */
-	if (ftp_check_response("1") != 0)
-		errx(1, "Data connection failed, shouldn't happen");
+	if (ftp_check_response("1") != 0) {
+		ret = -1;
+		goto exit;
+	}
 
 	while ((line = fparseln(data_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
 		printf("%s\n", line);
@@ -149,12 +151,13 @@ interpret_command(struct url *url)
 
 	/* NLST response after the transfer completion */
 	ftp_check_response("2");
-
+	ret = 0;
+exit:
 	fprintf(ctrl_fin, "QUIT\r\n");
 	fflush(ctrl_fin);
 	ftp_check_response("2");
 
-	exit(0);
+	exit(ret);
 
 }
 
@@ -165,7 +168,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	FILE		*data_fin;
 	char		*buf, *dir, *file;
 	off_t		 counter, file_sz;
-	int	 	 data_sock, flags;
+	int	 	 data_sock, flags, ret;
 
 	log_info("Using binary mode to transfer files.\n");
 	fprintf(ctrl_fin, "TYPE I\r\n");
@@ -209,7 +212,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if ((buf = ftp_response()) == NULL)
 		return (-1);
 	else if (buf[0] != '1')
-		errx(1, "Error retrieving file: %s", buf);
+		goto exit;
 	else
 		free(buf);
 
@@ -222,11 +225,13 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 
 	/* RETR response after the file transfer completion */
 	ftp_check_response("2");
+	ret = 200;
 
+exit:
 	fprintf(ctrl_fin, "QUIT\r\n");
 	fflush(ctrl_fin);
 	ftp_check_response("2");
-	return (200);
+	return (ret);
 }
 
 off_t
