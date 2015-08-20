@@ -163,7 +163,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 {
 	struct stat	 sb;
 	FILE		*data_fin;
-	char		*dir, *file;
+	char		*buf, *dir, *file;
 	off_t		 counter, file_sz;
 	int	 	 data_sock, flags;
 
@@ -206,8 +206,14 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	fflush(ctrl_fin);
 
 	/* Data connection established */
-	if (ftp_check_response("1") != 0)
-		errx(1, "Data connection failed, shouldn't happen");
+	if ((buf = ftp_response()) == NULL)
+		return (-1);
+
+	else if (buf[0] != '1')
+		errx(1, "Error retrieving file: %s", buf);
+
+	else
+		free(buf);
 
 	flags = O_CREAT | O_WRONLY;
 	flags |= (resume) ? O_APPEND : O_TRUNC;
