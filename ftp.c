@@ -208,10 +208,8 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	/* Data connection established */
 	if ((buf = ftp_response()) == NULL)
 		return (-1);
-
 	else if (buf[0] != '1')
 		errx(1, "Error retrieving file: %s", buf);
-
 	else
 		free(buf);
 
