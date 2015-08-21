@@ -103,7 +103,7 @@ void
 interpret_command(struct url *url)
 {
 	FILE		*data_fin;
-	char		*line;
+	char		*buf, *line;
 	size_t		 len;
 	int		 data_sock, ret;
 
@@ -139,10 +139,14 @@ interpret_command(struct url *url)
 	fprintf(ctrl_fin, "NLST\r\n");
 	fflush(ctrl_fin);
 	/* Data connection established */
-	if (ftp_check_response("1") != 0) {
+	if ((buf = ftp_response()) == NULL)
+		errx(1, "Error retrieving file");
+	else if (buf[0] != '1') {
 		ret = -1;
+		warnx("%s", buf);
 		goto exit;
-	}
+	} else
+		free(buf);
 
 	while ((line = fparseln(data_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
 		printf("%s\n", line);
@@ -211,9 +215,11 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	/* Data connection established */
 	if ((buf = ftp_response()) == NULL)
 		return (-1);
-	else if (buf[0] != '1')
+	else if (buf[0] != '1') {
+		ret = -1;
+		warnx("%s", buf);
 		goto exit;
-	else
+	} else
 		free(buf);
 
 	flags = O_CREAT | O_WRONLY;
