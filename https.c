@@ -397,7 +397,6 @@ https_parse_headers(struct tls *tls, struct headers *hdrs)
 	size_t		 len;
 	int		 ret;
 
-	ret = 0;
 	while ((buf = https_getline(tls, &len))) {
 		if (len == 0)
 			break; /* end of headers */
@@ -410,6 +409,7 @@ https_parse_headers(struct tls *tls, struct headers *hdrs)
 		free(buf);
 	}
 
+	ret = 0;
 exit:
 	free(buf);
 	return (ret);
