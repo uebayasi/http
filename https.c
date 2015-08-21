@@ -223,17 +223,14 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	cookie_get(url->host, url->path, 1, &cookie);
 
 	https_vprintf(ctx,
-	    "GET https://%s%s%s%s HTTP/1.0\r\n"
+	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
 	    "%s"
 	    "%s%s"
 	    "%s"
 	    "\r\n",
-	    url->host,
-	    (url->port[0]) ? ":" : "",
-	    (url->port[0]) ? url->port : "",
-	    url->path,
+	    (url->path[0]) ? url->path : "/",
 	    url->host,
 	    ua,
 	    (resume) ? range : "",
