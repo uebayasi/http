@@ -140,7 +140,7 @@ interpret_command(struct url *url)
 	fflush(ctrl_fin);
 	/* Data connection established */
 	if ((buf = ftp_response()) == NULL)
-		errx(1, "Error retrieving file");
+		errx(1, "interpret_command: Error retrieving file");
 	else if (buf[0] != '1') {
 		ret = -1;
 		warnx("%s", buf);

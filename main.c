@@ -153,8 +153,10 @@ retry:
 			/* Ideally should check Content-Range header */
 			warnx("File is already fully retrieved");
 			break;
+		case -1:
+			return (-1);
 		default:
-			return (code);
+			errx(1, "Error retrieving file: %s", http_errstr(code));
 		}
 
 		retries = 0;
