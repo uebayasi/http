@@ -262,6 +262,6 @@ usage(void)
 	fprintf(stderr, "usage: %s [-CV] [-o output] "
 	    "[-P port] [-U useragent] url ...\n", getprogname());
 #endif
-	exit(0);
+	exit(1);
 }
 
