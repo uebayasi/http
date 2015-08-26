@@ -47,7 +47,7 @@ void		 log_request(struct url *, struct url *);
 void	 	 retr_file(FILE *, const char *, int, off_t *);
 int		 response_code(char *);
 char		*url_encode(const char *);
-int		 url_parse(const char *, struct url *, int);
+void		 url_parse(const char *, struct url *, int);
 const char	*http_errstr(int);
 const char	*base64_encode(const char *, const char *);
 

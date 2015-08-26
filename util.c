@@ -182,11 +182,10 @@ url_encode(const char *path)
 }
 
 /* parse <proto>://<user>:<pass>@<host>:<port>/<path> */
-int
+void
 url_parse(const char *url_str, struct url *url, int proto)
 {
 	char	*curl, *e, *s, *t;
-	int	 ret = -1;
 
 	memset(url, 0, sizeof(struct url));
 	url->proto = proto;
@@ -201,10 +200,9 @@ url_parse(const char *url_str, struct url *url, int proto)
 	/* extract url path */
 	if ((e = strchr(s, '/'))) {
 		if (strlcpy(url->path, e,
-		    sizeof(url->path)) >= sizeof(url->path)) {
-			warnx("url_parse: path overflow");
-			goto cleanup;
-		}
+		    sizeof(url->path)) >= sizeof(url->path))
+			errx(1, "url_parse: path overflow");
+
 		*e = '\0';
 	}
 
@@ -214,18 +212,14 @@ url_parse(const char *url_str, struct url *url, int proto)
 		if ((t = strchr(s, ':'))) {
 			*t++ = '\0';
 			if (strlcpy(url->user, s,
-			    sizeof(url->user)) >= sizeof(url->user)) {
-				warnx("url_parse: user overflow");
-				goto cleanup;
-			}
+			    sizeof(url->user)) >= sizeof(url->user))
+				errx(1, "url_parse: user overflow");
 		}
 
 		if (t) {
 			if (strlcpy(url->pass, t,
-			    sizeof(url->pass)) >= sizeof(url->pass)) {
-				warnx("url_parse: pass overflow");
-				goto cleanup;
-			}
+			    sizeof(url->pass)) >= sizeof(url->pass))
+				errx(1, "url_parse: pass overflow");
 		}
 
 		s = e;
@@ -235,22 +229,15 @@ url_parse(const char *url_str, struct url *url, int proto)
 	if ((t = strchr(s, ':'))) {
 		*t++ = '\0';
 		if (strlcpy(url->port, t,
-		    sizeof(url->port)) >= sizeof(url->port)) {
-			warnx("url_parse: port overflow");
-			goto cleanup;
-		}
+		    sizeof(url->port)) >= sizeof(url->port))
+			errx(1, "url_parse: port overflow");
 	}
 
 	/* finally extract host */
-	if (strlcpy(url->host, s, sizeof(url->host)) >= sizeof(url->host)) {
-		warnx("url_parse: host overflow");
-		goto cleanup;
-	}
+	if (strlcpy(url->host, s, sizeof(url->host)) >= sizeof(url->host))
+		errx(1, "url_parse: host overflow");
 
-	ret = 0;
-cleanup:
 	free(curl);
-	return (ret);
 }
 
 int

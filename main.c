@@ -47,7 +47,7 @@ int		 verbose = 1;
 int
 main(int argc, char *argv[])
 {
-	struct url	 url, proxy, *pproxy = NULL;
+	struct url	 url, proxy;
 	struct headers	 res_hdrs;
 	char		*proxy_str, *url_str;
 	const char	*fn, *output = NULL, *port = NULL;
@@ -105,11 +105,7 @@ main(int argc, char *argv[])
 		if (p != HTTP)
 			errx(1, "Invalid proxy protocol: %s\n", proxy_str);
 
-		if (url_parse(proxy_str, &proxy, p) != 0)
-			errx(1, "Malformed proxy URL: %s", proxy_str);
-		else
-			pproxy = &proxy;
-
+		url_parse(proxy_str, &proxy, p);
 		if (proxy.port[0] == '\0')
 			(void)strlcpy(proxy.port, "80", sizeof(proxy.port));
 	}
@@ -121,9 +117,7 @@ main(int argc, char *argv[])
 retry:
 		url_str = url_encode(argv[i]);
 		p = url_type(url_str);
-		if (url_parse(url_str, &url, p) != 0)
-			errx(1, "Malformed URL: %s", url_str);
-
+		url_parse(url_str, &url, p);
 		if (p == FTP && port)
 			if (strlcpy(url.port, port, sizeof(url.port))
 			    >= sizeof(url.port))
@@ -132,10 +126,10 @@ retry:
 		if (strcmp(url.path, "/") == 0 || strlen(url.path) == 0)
 			errx(1, "No filename after host: %s", url.host);
 
-		if (url_connect(&url, pproxy) == -1)
+		if (url_connect(&url, (proxy_str) ? &proxy : NULL) == -1)
 			return (-1);
 
-		log_request(&url, pproxy);
+		log_request(&url, (proxy_str) ? &proxy : NULL);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
 		code = url_get(&url, fn, resume, &res_hdrs);
 		switch (code) {
