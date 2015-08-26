@@ -116,6 +116,8 @@ main(int argc, char *argv[])
 
 	for (i = 0; i < argc; i++) {
 		fn = (output) ? output : basename(argv[i]);
+		if (fn == NULL)
+			err(1, "basename");
 retry:
 		url_str = url_encode(argv[i]);
 		p = url_type(url_str);

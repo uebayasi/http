@@ -180,8 +180,12 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if (ftp_check_response("2") != 0)
 		return (-1);
 
-	dir = dirname(url->path);
-	file = basename(url->path);
+	if ((dir = dirname(url->path)) == NULL)
+		err(1, "ftp: dirname");
+
+	if ((file = basename(url->path)) == NULL)
+		err(1, "ftp: basename");
+
 	if (strcmp(dir, "/") != 0) {
 		fprintf(ctrl_fin, "CWD %s\r\n", dir);
 		fflush(ctrl_fin);
