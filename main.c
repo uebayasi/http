@@ -51,7 +51,7 @@ main(int argc, char *argv[])
 	struct headers	 res_hdrs;
 	char		*proxy_str, *url_str;
 	const char	*fn, *output = NULL, *port = NULL;
-	const char	*paths[] = { ".", NULL };
+	const char	*paths[] = { ".", "/etc/ssl", NULL };
 	int		 ch, code, i, p, resume = 0, retries = 0;
 
 	if (tame(TAME_DNS | TAME_INET | TAME_STDIO | TAME_IOCTL | 
