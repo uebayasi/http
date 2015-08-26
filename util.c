@@ -183,12 +183,28 @@ url_encode(const char *path)
 
 /* parse <proto>://<user>:<pass>@<host>:<port>/<path> */
 void
-url_parse(const char *url_str, struct url *url, int proto)
+url_parse(const char *url_str, struct url *url)
 {
 	char	*curl, *e, *s, *t;
 
 	memset(url, 0, sizeof(struct url));
-	url->proto = proto;
+	while (isblank((unsigned char)*url_str))
+		url_str++;
+
+#ifdef SMALL
+	if (strstr(url, "//") && strncasecmp(url, "http://", 7))
+		errx(1, "Unknown protocol");
+#endif
+
+	url->proto = HTTP; /* Defaults to HTTP */
+
+#ifndef SMALL
+	if (strncasecmp(url_str, "https://", 8) == 0)
+		url->proto = HTTPS;
+	else if (strncasecmp(url_str, "ftp://", 6) == 0)
+		url->proto = FTP;
+#endif
+
 	if ((curl = strdup(url_str)) == NULL)
 		err(1, "url_parse: strdup");
 

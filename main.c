@@ -34,7 +34,6 @@
 char	*absolute_url(char *, struct url *);
 int	 url_connect(struct url *, struct url *);
 int	 url_get(struct url *, const char *, int, struct headers *);
-int	 url_type(const char *);
 void	 usage(void);
 
 #ifndef SMALL
@@ -52,7 +51,7 @@ main(int argc, char *argv[])
 	char		*proxy_str, *url_str;
 	const char	*fn, *output = NULL, *port = NULL;
 	const char	*paths[] = { ".", "/etc/ssl", NULL };
-	int		 ch, code, i, p, resume = 0, retries = 0;
+	int		 ch, code, i, resume = 0, retries = 0;
 
 	if (tame(TAME_DNS | TAME_INET | TAME_STDIO | TAME_IOCTL | 
 	    TAME_CPATH | TAME_WPATH, paths) != 0)
@@ -101,11 +100,10 @@ main(int argc, char *argv[])
 		proxy_str = NULL;
 
 	if (proxy_str) {
-		p = url_type(proxy_str);
-		if (p != HTTP)
-			errx(1, "Invalid proxy protocol: %s\n", proxy_str);
+		url_parse(proxy_str, &proxy);
+		if (proxy.proto != HTTP)
+			errx(1, "Invalid proxy protocol: %s", proxy_str);
 
-		url_parse(proxy_str, &proxy, p);
 		if (proxy.port[0] == '\0')
 			(void)strlcpy(proxy.port, "80", sizeof(proxy.port));
 	}
@@ -116,9 +114,8 @@ main(int argc, char *argv[])
 			err(1, "basename");
 retry:
 		url_str = url_encode(argv[i]);
-		p = url_type(url_str);
-		url_parse(url_str, &url, p);
-		if (p == FTP && port)
+		url_parse(url_str, &url);
+		if (url.proto == FTP && port)
 			if (strlcpy(url.port, port, sizeof(url.port))
 			    >= sizeof(url.port))
 				errx(1, "port overflow: %s", port);
@@ -185,30 +182,6 @@ absolute_url(char *url_str, struct url *orig_url)
 		errx(1, "Cannot build redirect URL");
 
 	return (abs_url);
-}
-
-int
-url_type(const char *url)
-{
-	int type;
-
-	while (isblank((unsigned char)*url))
-		url++;
-
-#ifdef SMALL
-	if (strstr(url, "//") && strncasecmp(url, "http://", 7))
-		errx(1, "Unknown protocol");
-#endif
-
-	type = HTTP; /* Defaults to HTTP */
-
-#ifndef SMALL
-	if (strncasecmp(url, "https://", 8) == 0)
-		type = HTTPS;
-	else if (strncasecmp(url, "ftp://", 6) == 0)
-		type = FTP;
-#endif
-	return (type);
 }
 
 int
