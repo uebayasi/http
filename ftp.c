@@ -38,7 +38,7 @@ static FILE	*ctrl_fin;
 static int	 ctrl_sock = -1;
 
 int	 ftp_auth(struct url *);
-int	 ftp_check_response(const char *);
+int	 ftp_response_code(const char *);
 off_t	 ftp_size(const char *);
 char	*ftp_response(void);
 int	 ftp_pasv(void);
@@ -72,7 +72,7 @@ ftp_connect(struct url *url, struct url *proxy)
 
 	log_info("Connected to %s\n", url->host);
 	/* read greeting */
-	if (ftp_check_response("2") != 0)
+	if (ftp_response_code("2") != 0)
 		return (-1);
 
 	if (ftp_auth(url) == -1) {
@@ -107,17 +107,17 @@ interpret_command(struct url *url)
 
 	fprintf(ctrl_fin, "TYPE I\r\n");
 	fflush(ctrl_fin);
-	if (ftp_check_response("2") != 0)
+	if (ftp_response_code("2") != 0)
 		exit(-1);
 
 	fprintf(ctrl_fin, "CWD %s\r\n", url->path);
 	fflush(ctrl_fin);
-	if (ftp_check_response("2") != 0)
+	if (ftp_response_code("2") != 0)
 		errx(1, "%s No such file or directory", url->path);
 
 	fprintf(ctrl_fin, "TYPE A\r\n");
 	fflush(ctrl_fin);
-	if (ftp_check_response("2") != 0)
+	if (ftp_response_code("2") != 0)
 		exit(-1);
 
 	if ((data_sock = ftp_pasv()) == -1)
@@ -144,12 +144,12 @@ interpret_command(struct url *url)
 	}
 
 	/* NLST response after the transfer completion */
-	ftp_check_response("2");
+	ftp_response_code("2");
 	ret = 0;
 exit:
 	fprintf(ctrl_fin, "QUIT\r\n");
 	fflush(ctrl_fin);
-	ftp_check_response("2");
+	ftp_response_code("2");
 
 	exit(ret);
 
@@ -167,7 +167,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	log_info("Using binary mode to transfer files.\n");
 	fprintf(ctrl_fin, "TYPE I\r\n");
 	fflush(ctrl_fin);
-	if (ftp_check_response("2") != 0)
+	if (ftp_response_code("2") != 0)
 		return (-1);
 
 	if ((dir = dirname(url->path)) == NULL)
@@ -179,7 +179,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if (strcmp(dir, "/") != 0) {
 		fprintf(ctrl_fin, "CWD %s\r\n", dir);
 		fflush(ctrl_fin);
-		if (ftp_check_response("2") != 0)
+		if (ftp_response_code("2") != 0)
 			errx(1, "%s No such file or directory", dir);
 	}
 
@@ -195,7 +195,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		if (stat(out_fn, &sb) == 0) {
 			fprintf(ctrl_fin, "REST %lld\r\n", sb.st_size);
 			fflush(ctrl_fin);
-			if (ftp_check_response("3") == 0)
+			if (ftp_response_code("3") == 0)
 				counter = sb.st_size;
 			else
 				resume = 0;
@@ -224,13 +224,13 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	stop_progress_meter();
 
 	/* RETR response after the file transfer completion */
-	ftp_check_response("2");
+	ftp_response_code("2");
 	ret = 200;
 
 exit:
 	fprintf(ctrl_fin, "QUIT\r\n");
 	fflush(ctrl_fin);
-	ftp_check_response("2");
+	ftp_response_code("2");
 	return (ret);
 }
 
@@ -343,7 +343,7 @@ ftp_auth(struct url *url)
 
 	fprintf(ctrl_fin, "USER %s\r\n", url->user);
 	fflush(ctrl_fin);
-	if (ftp_check_response("23") != 0)
+	if (ftp_response_code("23") != 0)
 		return (-1);
 
 	if (url->pass[0])
@@ -352,14 +352,14 @@ ftp_auth(struct url *url)
 		fprintf(ctrl_fin, "PASS\r\n");
 
 	fflush(ctrl_fin);
-	if (ftp_check_response("2") != 0)
+	if (ftp_response_code("2") != 0)
 		return (-1);
 
 	return (0);
 }
 
 int
-ftp_check_response(const char *res_code)
+ftp_response_code(const char *res_code)
 {
 	char	*buf;
 	int	 ret;
