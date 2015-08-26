@@ -48,8 +48,6 @@ int
 ftp_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
-	char		*buf;
-	size_t		 len;
 	int		 code;
 
 	if (url->port[0] == '\0')
@@ -67,15 +65,7 @@ ftp_connect(struct url *url, struct url *proxy)
 	if (proxy) {
 		fprintf(ctrl_fin, "CONNECT %s:%s\r\n", url->host, url->port);
 		fflush(ctrl_fin);
-		if ((buf = http_response(ctrl_fin, &len)) == NULL)
-			return (-1);
-
-		if ((code = http_response_code(buf)) == -1) {
-			free(buf);
-			return (-1);
-		}
-
-		free(buf);
+		code = http_response_code(ctrl_fin);
 		if (code != 200)
 			errx(1, "Error retrieving file: %s", http_errstr(code));
 	}

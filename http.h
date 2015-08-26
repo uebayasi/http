@@ -37,8 +37,7 @@ struct url {
 /* http.c */
 int	 http_connect(struct url *, struct url *);
 int	 http_get(struct url *, const char *, int, struct headers *);
-char	*http_response(FILE *, size_t *);
-int	 http_response_code(char *);
+int	 http_response_code(FILE *);
 
 /* util.c */
 int		 tcp_connect(const char *, const char *);
@@ -46,6 +45,7 @@ int		 header_insert(struct headers *, const char *);
 void		 log_info(const char *, ...);
 void		 log_request(struct url *, struct url *);
 void	 	 retr_file(FILE *, const char *, int, off_t *);
+int		 response_code(char *);
 char		*url_encode(const char *);
 int		 url_parse(const char *, struct url *, int);
 const char	*http_errstr(int);

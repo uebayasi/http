@@ -343,6 +343,34 @@ base64_encode(const char *user, const char *pass)
 	return (basic_auth);
 }
 
+int
+response_code(char *buf)
+{
+	const char	*errstr;
+	char		*p, *q;
+	int		 res;
+
+	if ((p = strchr(buf, ' ')) == NULL) {
+		warnx("http_response_code: Malformed response");
+		return (-1);
+	}
+
+	p++;
+	if ((q = strchr(p, ' ')) == NULL) {
+		warnx("http_response_code: Malformed response");
+		return (-1);
+	}
+
+	*q = '\0';
+	res = strtonum(p, 200, 503, &errstr);
+	if (errstr) {
+		warn("http_response_code: strtonum");
+		return (-1);
+	}
+
+	return (res);
+}
+
 void
 log_info(const char *fmt, ...)
 {

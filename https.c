@@ -63,8 +63,9 @@
 int	 https_vprintf(struct tls *, const char *, ...)
     __attribute__((__format__ (printf, 2, 3)))
     __attribute__((__nonnull__ (2)));
-char	*https_getline(struct tls *, size_t *);
+char	*https_response(struct tls *, size_t *);
 int	 https_parse_headers(struct tls *, struct headers *);
+int	 https_response_code(struct tls *);
 void	 https_retr_file(struct tls *, int, off_t *);
 
 struct tls_config	*https_init(void);
@@ -201,9 +202,8 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	struct stat		 sb;
 	char			 range[BUFSIZ];
 	const char		*basic_auth = NULL;
-	char			*cookie, *buf;
+	char			*cookie;
 	off_t			 counter;
-	size_t			 len;
 	int			 fd, flags, res = -1, ret;
 	extern const char	*ua;
 
@@ -238,10 +238,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	    (basic_auth) ? basic_auth : "",
 	    cookie ? cookie : "");
 
-	if ((buf = https_getline(ctx, &len)) == NULL)
-		goto cleanup;
-
-	if ((res = http_response_code(buf)) == -1)
+	if ((res = https_response_code(ctx)) == -1)
 		goto cleanup;
 
 	if (https_parse_headers(ctx, hdrs) != 0) {
@@ -274,7 +271,6 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	}
 
 cleanup:
-	free(buf);
 	while ((ret = tls_close(ctx)) != 0)
 		if (ret != TLS_READ_AGAIN && ret != TLS_WRITE_AGAIN)
 			errx(1, "https_get: tls_close: %s", tls_error(ctx));
@@ -348,7 +344,7 @@ again:
 }
 
 char *
-https_getline(struct tls *tls, size_t *lenp)
+https_response(struct tls *tls, size_t *lenp)
 {
 	size_t	 i, len, nr;
 	char	*buf, *q, c;
@@ -394,7 +390,7 @@ https_parse_headers(struct tls *tls, struct headers *hdrs)
 	size_t		 len;
 	int		 ret;
 
-	while ((buf = https_getline(tls, &len))) {
+	while ((buf = https_response(tls, &len))) {
 		if (len == 0)
 			break; /* end of headers */
 
@@ -410,4 +406,17 @@ https_parse_headers(struct tls *tls, struct headers *hdrs)
 exit:
 	free(buf);
 	return (ret);
+}
+
+int
+https_response_code(struct tls *tls)
+{
+	char		*buf;
+	size_t		 len;
+	int		 res;
+
+	buf = https_response(tls, &len);
+	res = response_code(buf);
+	free(buf);
+	return (res);
 }

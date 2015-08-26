@@ -28,9 +28,10 @@
 #include "http.h"
 #include "progressmeter.h"
 
-void	http_init(void);
-int	http_parse_headers(FILE *, struct headers *);
-int	proxy_connect(int, struct url *, struct url *);
+void	 http_init(void);
+int	 http_parse_headers(FILE *, struct headers *);
+char	*http_response(FILE *, size_t *);
+int	 proxy_connect(int, struct url *, struct url *);
 
 extern const char	*ua;
 static int		 s = -1;
@@ -74,9 +75,7 @@ int
 proxy_connect(int sock, struct url *url, struct url *proxy)
 {
 	FILE		*fp;
-	char		*buf;
 	const char	*proxy_auth = NULL;
-	size_t		 len;
 	int		 code;
 
 	if ((fp = fdopen(sock, "r+")) == NULL)
@@ -99,15 +98,7 @@ proxy_connect(int sock, struct url *url, struct url *proxy)
 	    (proxy_auth) ? proxy_auth : "");
 
 	fflush(fp);
-	if ((buf = http_response(fp, &len)) == NULL)
-		return (-1);
-
-	if ((code = http_response_code(buf)) == -1) {
-		free(buf);
-		return (-1);
-	}
-
-	free(buf);
+	code = http_response_code(fp);
 	if (code != 200)
 		errx(1, "Error retrieving file: %s", http_errstr(code));
 
@@ -122,11 +113,9 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	off_t		 counter;
 	const char	*basic_auth = NULL;
 	FILE		*fin;
-	char		*buf;
 #ifndef SMALL
 	char		*cookie;
 #endif
-	size_t		 len;
 	int		 flags, res = -1;
 
 	if ((fin = fdopen(s, "r+")) == NULL)
@@ -171,15 +160,9 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	    );
 
 	fflush(fin);
-	if ((buf = http_response(fin, &len)) == NULL)
+	if ((res = http_response_code(fin)) == -1)
 		goto cleanup;
 
-	if ((res = http_response_code(buf)) == -1) {
-		free(buf);
-		goto cleanup;
-	}
-
-	free(buf);
 	if (http_parse_headers(fin, hdrs) != 0) {
 		res = -1;
 		goto cleanup;
@@ -204,34 +187,6 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 
 cleanup:
 	fclose(fin);
-	return (res);
-}
-
-int
-http_response_code(char *buf)
-{
-	const char	*errstr;
-	char		*p, *q;
-	int		 res;
-
-	if ((p= strchr(buf, ' ')) == NULL) {
-		warnx("http_response_code: Malformed response");
-		return (-1);
-	}
-
-	p++;
-	if ((q = strchr(p, ' ')) == NULL) {
-		warnx("http_response_code: Malformed response");
-		return (-1);
-	}
-
-	*q = '\0';
-	res = strtonum(p, 200, 503, &errstr);
-	if (errstr) {
-		warn("http_response_code: strtonum");
-		return (-1);
-	}
-
 	return (res);
 }
 
@@ -276,5 +231,18 @@ http_response(FILE *fp, size_t *len)
 
 	*len = ln;
 	return (buf);
+}
+
+int
+http_response_code(FILE *fp)
+{
+	char		*buf;
+	size_t		 len;
+	int		 res;
+
+	buf = http_response(fp, &len);
+	res = response_code(buf);
+	free(buf);
+	return (res);
 }
 
