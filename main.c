@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/tame.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
@@ -49,7 +51,12 @@ main(int argc, char *argv[])
 	struct headers	 res_hdrs;
 	char		*proxy_str, *url_str;
 	const char	*fn, *output = NULL, *port = NULL;
+	const char	*paths[] = { ".", NULL };
 	int		 ch, code, i, p, resume = 0, retries = 0;
+
+	if (tame(TAME_DNS | TAME_INET | TAME_STDIO | TAME_IOCTL | 
+	    TAME_CPATH | TAME_WPATH, paths) != 0)
+		err(1, "tame");
 
 #ifndef SMALL
 	cookiefile = getenv("http_cookies");
