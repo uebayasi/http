@@ -250,6 +250,8 @@ http_parse_headers(FILE *fin, struct headers *hdrs)
 			ret = -1;
 			goto exit;
 		}
+		
+		free(buf);
 	}
 
 	ret = 0;
