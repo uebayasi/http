@@ -67,7 +67,7 @@ int	 https_vprintf(struct tls *, const char *, ...)
 char	*https_response(struct tls *, size_t *);
 int	 https_parse_headers(struct tls *, struct headers *);
 int	 https_response_code(struct tls *);
-void	 https_retr_file(struct tls *, int, off_t *);
+void	 https_retr_file(struct tls *, const char *, int, off_t, off_t);
 
 struct tls_config	*https_init(void);
 
@@ -202,7 +202,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	char			 range[BUFSIZ];
 	const char		*basic_auth = NULL;
 	off_t			 offset;
-	int			 fd, flags, res = -1, ret;
+	int			 flags, res = -1, ret;
 	extern const char	*ua;
 
 	offset = 0;
@@ -251,16 +251,8 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	switch (res) {
 	case 206:	/* Partial content */
 	case 200:	/* OK */
-		if (strcmp(out_fn, "-") == 0)
-			fd = STDOUT_FILENO;
-		else if ((fd = open(out_fn, flags, 0666)) == -1)
-			err(1, "%s: open %s", __func__, out_fn);
-
-		start_progress_meter(hdrs->c_len + offset, &offset);
-		https_retr_file(ctx, fd, &offset);
-		stop_progress_meter();
-		if (fd != STDOUT_FILENO)
-			close(fd);
+		https_retr_file(ctx, out_fn, flags,
+		    hdrs->c_len + offset, offset);
 		break;
 	}
 
@@ -274,13 +266,19 @@ cleanup:
 }
 
 void
-https_retr_file(struct tls *tls, int out, off_t *ctr)
+https_retr_file(struct tls *tls, const char *out_fn, int flags, off_t file_sz,
+    off_t offset)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
 	char		*cp;
 	static char	*buf;
-	int		 ret;
+	int		 fd, ret;
+
+	if (strcmp(out_fn, "-") == 0)
+		fd = STDOUT_FILENO;
+	else if ((fd = open(out_fn, flags, 0666)) == -1)
+		err(1, "%s: open %s", __func__, out_fn);
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
@@ -288,6 +286,7 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 			err(1, "%s: malloc", __func__);
 	}
 
+	start_progress_meter(file_sz, &offset);
 	while (1) {
 		ret = tls_read(tls, buf, TMPBUF_LEN, &r);
 		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
@@ -299,15 +298,19 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 		if (r == 0)
 			break;
 
-		*ctr += r;
+		offset += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
-			if ((i = write(out, cp, wlen)) == -1) {
+			if ((i = write(fd, cp, wlen)) == -1) {
 				if (errno != EINTR)
 					err(1, "%s: write", __func__);
 			} else if (i == 0)
 				break;
 		}
 	}
+
+	stop_progress_meter();
+	if (fd != STDOUT_FILENO)
+		close(fd);
 }
 
 int
