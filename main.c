@@ -37,7 +37,6 @@ int	 url_get(struct url *, const char *, int, struct headers *);
 void	 usage(void);
 
 #ifndef SMALL
-const char	*cookiefile;
 char		*tls_options;
 #endif
 const char	*ua = USER_AGENT;
@@ -57,16 +56,9 @@ main(int argc, char *argv[])
 	    TAME_CPATH | TAME_WPATH, paths) != 0)
 		err(1, "tame");
 
-#ifndef SMALL
-	cookiefile = getenv("http_cookies");
-#endif
-
-	while ((ch = getopt(argc, argv, "c:Co:P:S:U:V")) != -1) {
+	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
 #ifndef SMALL
-		case 'c':
-			cookiefile = optarg;
-			break;
 		case 'S':
 			tls_options = optarg;
 			break;
@@ -231,7 +223,7 @@ void
 usage(void)
 {
 #ifndef SMALL
-	fprintf(stderr, "usage: %s [-CV] [-c cookie] [-o output] "
+	fprintf(stderr, "usage: %s [-CV] [-o output] "
 	    "[-P port] [-S tls_options ] [-U useragent] url ...\n",
 	    getprogname());
 #else

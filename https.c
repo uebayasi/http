@@ -108,8 +108,6 @@ https_init(void)
 	if (tls_config_set_ciphers(tls_config, "compat") != 0)
 		errx(1, "tls set ciphers failed");
 
-	cookie_load();
-
 	if (tls_options == NULL)
 		return (tls_config);
 
@@ -202,7 +200,6 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	struct stat		 sb;
 	char			 range[BUFSIZ];
 	const char		*basic_auth = NULL;
-	char			*cookie;
 	off_t			 counter;
 	int			 fd, flags, res = -1, ret;
 	extern const char	*ua;
@@ -220,23 +217,19 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if (url->user[0] || url->pass[0])
 		basic_auth = base64_encode(url->user, url->pass);
 
-	cookie_get(url->host, url->path, 1, &cookie);
-
 	https_vprintf(ctx,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
 	    "%s"
 	    "%s%s"
-	    "%s"
 	    "\r\n",
 	    (url->path[0]) ? url->path : "/",
 	    url->host,
 	    ua,
 	    (resume) ? range : "",
 	    (basic_auth) ? "Authorization: Basic " : "",
-	    (basic_auth) ? basic_auth : "",
-	    cookie ? cookie : "");
+	    (basic_auth) ? basic_auth : "");
 
 	if ((res = https_response_code(ctx)) == -1)
 		goto cleanup;

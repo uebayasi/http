@@ -39,9 +39,6 @@ static int		 s = -1;
 void
 http_init(void)
 {
-#ifndef SMALL
-	cookie_load();
-#endif
 }
 
 int
@@ -113,9 +110,6 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	off_t		 counter;
 	const char	*basic_auth = NULL;
 	FILE		*fin;
-#ifndef SMALL
-	char		*cookie;
-#endif
 	int		 flags, res = -1;
 
 	if ((fin = fdopen(s, "r+")) == NULL)
@@ -134,30 +128,19 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if (url->user[0] || url->pass[0])
 		basic_auth = base64_encode(url->user, url->pass);
 
-#ifndef SMALL
-	cookie_get(url->host, url->path, 0, &cookie);
-#endif
-
 	fprintf(fin,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
 	    "%s"
 	    "%s%s"
-#ifndef SMALL
-	    "%s"
-#endif
 	    "\r\n",
 	    (url->path[0]) ? url->path : "/",
 	    url->host,
 	    ua,
 	    (resume) ? range : "",
 	    (basic_auth) ? "Authorization: Basic " : "",
-	    (basic_auth) ? basic_auth : ""
-#ifndef SMALL
-	    ,cookie ? cookie : ""
-#endif
-	    );
+	    (basic_auth) ? basic_auth : "");
 
 	fflush(fin);
 	if ((res = http_response_code(fin)) == -1)

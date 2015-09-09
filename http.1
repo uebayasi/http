@@ -49,7 +49,6 @@
 .Nd HTTP file transfer program
 .Sh SYNOPSIS
 .Nm
-.Op Fl c Ar cookie
 .Op Fl C
 .Op Fl o Ar output
 .Op Fl P Ar port
@@ -63,18 +62,6 @@ allows a user to transfer files from a remote HTTP(S) or FTP server.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl c Ar cookie
-Load a Netscape-like cookiejar file for HTTP(S) transfers.
-With this option relevant cookies from the jar are sent with each HTTP(S)
-request.
-Setting the
-.Ev http_cookies
-environment variable has the same effect.
-If both the
-.Ev http_cookies
-environment variable is set and the
-.Fl c
-argument is given, the latter takes precedence.
 .It Fl C
 Continue a previously interrupted file transfer.
 .Nm
@@ -149,6 +136,4 @@ utilizes the following environment variables:
 .Bl -tag -width Ds
 .It Ev http_proxy
 URL of HTTP proxy to use when making HTTP(S) URL requests.
-.It Ev http_cookies
-Path of Netscape-like cookiejar file to use when making HTTP(S) URL requests.
 .El

@@ -52,10 +52,6 @@ const char	*http_errstr(int);
 const char	*base64_encode(const char *, const char *);
 
 #ifndef SMALL
-/* cookie.c */
-void	cookie_load(void);
-void	cookie_get(const char *, const char *, int, char **);
-
 /* https.c */
 int	https_connect(struct url *, struct url *);
 int	https_get(struct url *, const char *, int, struct headers *);
