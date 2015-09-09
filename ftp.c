@@ -61,7 +61,7 @@ ftp_connect(struct url *url, struct url *proxy)
 		return (-1);
 
 	if ((ctrl_fin = fdopen(ctrl_sock, "r+")) == NULL)
-		err(1, "ftp_connect: fdopen");
+		err(1, "%s: fdopen", __func__);
 
 	if (proxy) {
 		fprintf(ctrl_fin, "CONNECT %s:%s\r\n", url->host, url->port);
@@ -114,7 +114,8 @@ interpret_command(struct url *url)
 	fprintf(ctrl_fin, "CWD %s\r\n", url->path);
 	fflush(ctrl_fin);
 	if (ftp_response_code("2") != 0)
-		errx(1, "%s No such file or directory", url->path);
+		errx(1, "%s: %s No such file or directory",
+		    __func__, url->path);
 
 	fprintf(ctrl_fin, "TYPE A\r\n");
 	fflush(ctrl_fin);
@@ -125,13 +126,13 @@ interpret_command(struct url *url)
 		exit(-1);
 
 	if ((data_fin = fdopen(data_sock, "r+")) == NULL)
-		err(1, "interpret_command: fdopen");
+		err(1, "%s: fdopen", __func__);
 
 	fprintf(ctrl_fin, "NLST\r\n");
 	fflush(ctrl_fin);
 	/* Data connection established */
 	if ((buf = ftp_response()) == NULL)
-		errx(1, "interpret_command: Error retrieving file");
+		errx(1, "%s: Error retrieving file", __func__);
 	else if (buf[0] != '1') {
 		ret = -1;
 		warnx("%s", buf);
@@ -172,16 +173,17 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		return (-1);
 
 	if ((dir = dirname(url->path)) == NULL)
-		err(1, "ftp: dirname");
+		err(1, "%s: dirname", __func__);
 
 	if ((file = basename(url->path)) == NULL)
-		err(1, "ftp: basename");
+		err(1, "%s: basename", __func__);
 
 	if (strcmp(dir, "/") != 0) {
 		fprintf(ctrl_fin, "CWD %s\r\n", dir);
 		fflush(ctrl_fin);
 		if (ftp_response_code("2") != 0)
-			errx(1, "%s No such file or directory", dir);
+			errx(1, "%s: %s No such file or directory",
+			    __func__, dir);
 	}
 
 	file_sz = ftp_size(file);
@@ -189,7 +191,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		return (-1);
 
 	if ((data_fin = fdopen(data_sock, "r+")) == NULL)
-		err(1, "ftp_get: fdopen");
+		err(1, "%s: fdopen", __func__);
 
 	counter = 0;
 	if (resume) {
@@ -327,11 +329,11 @@ ftp_pasv(void)
 	data_addr.sin_port = htons(pack2(port, 0));
 
 	if ((sock = socket(data_addr.sin_family, SOCK_STREAM, 0)) == -1)
-		err(1, "ftp_pasv: socket");
+		err(1, "%s: socket", __func__);
 
 	if (connect(sock, (struct sockaddr *)&data_addr,
 	    data_addr.sin_len) == -1)
-		err(1, "ftp_pasv: connect");
+		err(1, "%s: connect", __func__);
 
 	return (sock);
 }

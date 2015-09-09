@@ -197,7 +197,7 @@ url_connect(struct url *url, struct url *proxy)
 		break;
 #endif
 	default:
-		errx(1, "url_connect: Invalid protocol");
+		errx(1, "%s: Invalid protocol", __func__);
 	}
 
 	return (ret);
@@ -216,7 +216,7 @@ url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 		return ftp_get(url, fn, resume, hdrs);
 #endif
 	default:
-		errx(1, "url_get: Invalid protocol");
+		errx(1, "%s: Invalid protocol", __func__);
 	}
 }
 

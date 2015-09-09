@@ -177,7 +177,7 @@ https_connect(struct url *url, struct url *proxy)
 	}
 
 	if (tls_configure(ctx, tls_config) != 0) {
-		warnx("tls_configure: %s", tls_error(ctx));
+		warnx("%s: %s", __func__, tls_error(ctx));
 		return (-1);
 	}
 
@@ -188,7 +188,7 @@ https_connect(struct url *url, struct url *proxy)
 		return (-1);
 
 	if (tls_connect_socket(ctx, s, url->host) != 0) {
-		warnx("tls_connect: %s", tls_error(ctx));
+		warnx("%s: %s", __func__, tls_error(ctx));
 		return (-1);
 	}
 
@@ -254,7 +254,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		if (strcmp(out_fn, "-") == 0)
 			fd = STDOUT_FILENO;
 		else if ((fd = open(out_fn, flags, 0666)) == -1)
-			err(1, "https_get: open %s", out_fn);
+			err(1, "%s: open %s", __func__, out_fn);
 
 		start_progress_meter(hdrs->c_len + counter, &counter);
 		https_retr_file(ctx, fd, &counter);
@@ -267,7 +267,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 cleanup:
 	while ((ret = tls_close(ctx)) != 0)
 		if (ret != TLS_READ_AGAIN && ret != TLS_WRITE_AGAIN)
-			errx(1, "https_get: tls_close: %s", tls_error(ctx));
+			errx(1, "%s: tls_close: %s", __func__, tls_error(ctx));
 
 	tls_free(ctx);
 	return (res);
@@ -285,7 +285,7 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
 		if (buf == NULL)
-			err(1, "https_retr_file: malloc");
+			err(1, "%s: malloc", __func__);
 	}
 
 	while (1) {
@@ -293,8 +293,7 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
 			continue;
 		else if (ret != 0) {
-			errx(1, "https_retr_file: tls_read: %s",
-			    tls_error(tls));
+			errx(1, "%s: tls_read: %s", __func__, tls_error(tls));
 		}
 
 		if (r == 0)
@@ -304,7 +303,7 @@ https_retr_file(struct tls *tls, int out, off_t *ctr)
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
 			if ((i = write(out, cp, wlen)) == -1) {
 				if (errno != EINTR)
-					err(1, "https_retr_file: write");
+					err(1, "%s: write", __func__);
 			} else if (i == 0)
 				break;
 		}
@@ -331,7 +330,7 @@ again:
 	if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
 		goto again;
 	else if (ret != 0)
-		errx(1, "https_vprintf: tls_write: %s", tls_error(tls));
+		errx(1, "%s: tls_write: %s", __func__, tls_error(tls));
 
 	free(string);
 	return ret;

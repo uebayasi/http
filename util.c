@@ -208,7 +208,7 @@ url_parse(const char *url_str, struct url *url)
 #endif
 
 	if ((curl = strdup(url_str)) == NULL)
-		err(1, "url_parse: strdup");
+		err(1, "%s: strdup", __func__);
 
 	if ((s = strstr(curl, "//")) != NULL)
 		s += 2;
@@ -219,7 +219,7 @@ url_parse(const char *url_str, struct url *url)
 	if ((e = strchr(s, '/'))) {
 		if (strlcpy(url->path, e,
 		    sizeof(url->path)) >= sizeof(url->path))
-			errx(1, "url_parse: path overflow");
+			errx(1, "%s: path overflow", __func__);
 
 		*e = '\0';
 	}
@@ -231,13 +231,13 @@ url_parse(const char *url_str, struct url *url)
 			*t++ = '\0';
 			if (strlcpy(url->user, s,
 			    sizeof(url->user)) >= sizeof(url->user))
-				errx(1, "url_parse: user overflow");
+				errx(1, "%s: user overflow", __func__);
 		}
 
 		if (t) {
 			if (strlcpy(url->pass, t,
 			    sizeof(url->pass)) >= sizeof(url->pass))
-				errx(1, "url_parse: pass overflow");
+				errx(1, "%s: pass overflow", __func__);
 		}
 
 		s = e;
@@ -248,12 +248,12 @@ url_parse(const char *url_str, struct url *url)
 		*t++ = '\0';
 		if (strlcpy(url->port, t,
 		    sizeof(url->port)) >= sizeof(url->port))
-			errx(1, "url_parse: port overflow");
+			errx(1, "%s: port overflow", __func__);
 	}
 
 	/* finally extract host */
 	if (strlcpy(url->host, s, sizeof(url->host)) >= sizeof(url->host))
-		errx(1, "url_parse: host overflow");
+		errx(1, "%s: host overflow", __func__);
 
 	free(curl);
 }
@@ -269,7 +269,7 @@ header_insert(struct headers *hdrs, const char *buf)
 		buf++;
 		hdrs->c_len = strtonum(buf, 0, LLONG_MAX, &errstr);
 		if (errstr) {
-			warn("insert_header: strtonum");
+			warn("%s: strtonum", __func__);
 			return (-1);
 		}
 	}
@@ -279,7 +279,7 @@ header_insert(struct headers *hdrs, const char *buf)
 		buf++;
 		sz = strlcpy(hdrs->location, buf, sizeof(hdrs->location));
 		if (sz >= sizeof(hdrs->location)) {
-			warnx("header_insert: Location overflow");
+			warnx("%s: Location overflow", __func__);
 			return (-1);
 		}
 	}
@@ -299,28 +299,28 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t *ctr)
 	if (strcmp(out_fn, "-") == 0)
 		out = STDOUT_FILENO;
 	else if ((out = open(out_fn, flags, 0666)) == -1)
-		err(1, "http_get: open %s", out_fn);
+		err(1, "%s: open %s", __func__, out_fn);
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
 		if (buf == NULL)
-			err(1, "retr_file: malloc");
+			err(1, "%s: malloc", __func__);
 	}
 
 	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fin)) > 0) {
 		if (ferror(fin))
-			err(1, "retr_file: fread");
+			err(1, "%s: fread", __func__);
 		*ctr += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
 			if ((i = write(out, cp, wlen)) == -1) {
 				if (errno != EINTR)
-					err(1, "retr_file: write");
+					err(1, "%s: write", __func__);
 			} else if (i == 0)
 				break;
 		}
 	}
 	if (ferror(fin))
-		err(1, "retr_file: fread");
+		err(1, "%s: fread", __func__);
 
 	if (out != STDOUT_FILENO)
 		close(out);
@@ -334,7 +334,7 @@ base64_encode(const char *user, const char *pass)
 	int		 ret;
 
 	if ((ret = asprintf(&creds, "%s:%s", user, pass)) == -1)
-		errx(1, "base64_encode: asprintf failed");
+		errx(1, "%s: asprintf failed", __func__);
 
 	if (b64_ntop((unsigned char *)creds, ret,
 	    b64_creds, sizeof(b64_creds)) == -1)
@@ -343,7 +343,7 @@ base64_encode(const char *user, const char *pass)
 	free(creds);
 	ret = snprintf(basic_auth, BUFSIZ, "%s\r\n", b64_creds);
 	if (ret == -1 || ret > BUFSIZ)
-		errx(1, "base64_encode: basic_auth overflow");
+		errx(1, "%s: basic_auth overflow", __func__);
 
 	return (basic_auth);
 }
@@ -356,20 +356,20 @@ response_code(char *buf)
 	int		 res;
 
 	if ((p = strchr(buf, ' ')) == NULL) {
-		warnx("http_response_code: Malformed response");
+		warnx("%s: Malformed response", __func__);
 		return (-1);
 	}
 
 	p++;
 	if ((q = strchr(p, ' ')) == NULL) {
-		warnx("http_response_code: Malformed response");
+		warnx("%s: Malformed response", __func__);
 		return (-1);
 	}
 
 	*q = '\0';
 	res = strtonum(p, 200, 503, &errstr);
 	if (errstr) {
-		warn("http_response_code: strtonum");
+		warn("%s: strtonum", __func__);
 		return (-1);
 	}
 

@@ -77,7 +77,7 @@ proxy_connect(int sock, struct url *url, struct url *proxy)
 	int		 code;
 
 	if ((fp = fdopen(sock, "r+")) == NULL)
-		err(1, "proxy_connect: fdopen");
+		err(1, "%s: fdopen", __func__);
 
 	if (proxy->user[0] || proxy->pass[0])
 		proxy_auth = base64_encode(proxy->user, proxy->pass);
@@ -114,7 +114,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	int		 flags, res = -1;
 
 	if ((fin = fdopen(s, "r+")) == NULL)
-		err(1, "http_get: fdopen");
+		err(1, "%s: fdopen", __func__);
 
 	counter = 0;
 	if (resume) {
@@ -206,7 +206,7 @@ http_response(FILE *fp, size_t *len)
 	size_t	 ln;
 
 	if ((buf = fparseln(fp, &ln, NULL, "\0\0\0", 0)) == NULL) {
-		warn("http_response");
+		warn("%s", __func__);
 		return (NULL);
 	}
 
