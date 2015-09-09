@@ -196,13 +196,15 @@ url_parse(const char *url_str, struct url *url)
 		errx(1, "Unknown protocol");
 #endif
 
-	url->proto = HTTP; /* Defaults to HTTP */
-
 #ifndef SMALL
+	if (strncasecmp(url_str, "http://", 7) == 0)
+		url->proto = HTTP;
 	if (strncasecmp(url_str, "https://", 8) == 0)
 		url->proto = HTTPS;
 	else if (strncasecmp(url_str, "ftp://", 6) == 0)
 		url->proto = FTP;
+	else
+		errx(1, "%s: Invalid protocol %s", __func__, url_str);
 #endif
 
 	if ((curl = strdup(url_str)) == NULL)
