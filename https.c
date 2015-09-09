@@ -64,10 +64,10 @@
 int	 https_vprintf(struct tls *, const char *, ...)
     __attribute__((__format__ (printf, 2, 3)))
     __attribute__((__nonnull__ (2)));
-char	*https_response(struct tls *, size_t *);
-int	 https_parse_headers(struct tls *, struct headers *);
-int	 https_response_code(struct tls *);
-void	 https_retr_file(struct tls *, const char *, int, off_t, off_t);
+char	*https_response(size_t *);
+int	 https_parse_headers(struct headers *);
+int	 https_response_code(void);
+void	 https_retr_file(const char *, int, off_t, off_t);
 
 struct tls_config	*https_init(void);
 
@@ -232,10 +232,10 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	    (basic_auth) ? "Authorization: Basic " : "",
 	    (basic_auth) ? basic_auth : "");
 
-	if ((res = https_response_code(ctx)) == -1)
+	if ((res = https_response_code()) == -1)
 		goto cleanup;
 
-	if (https_parse_headers(ctx, hdrs) != 0) {
+	if (https_parse_headers(hdrs) != 0) {
 		res = -1;
 		goto cleanup;
 	}
@@ -251,8 +251,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	switch (res) {
 	case 206:	/* Partial content */
 	case 200:	/* OK */
-		https_retr_file(ctx, out_fn, flags,
-		    hdrs->c_len + offset, offset);
+		https_retr_file(out_fn, flags, hdrs->c_len + offset, offset);
 		break;
 	}
 
@@ -266,8 +265,7 @@ cleanup:
 }
 
 void
-https_retr_file(struct tls *tls, const char *out_fn, int flags, off_t file_sz,
-    off_t offset)
+https_retr_file(const char *out_fn, int flags, off_t file_sz, off_t offset)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
@@ -288,11 +286,11 @@ https_retr_file(struct tls *tls, const char *out_fn, int flags, off_t file_sz,
 
 	start_progress_meter(file_sz, &offset);
 	while (1) {
-		ret = tls_read(tls, buf, TMPBUF_LEN, &r);
+		ret = tls_read(ctx, buf, TMPBUF_LEN, &r);
 		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
 			continue;
 		else if (ret != 0) {
-			errx(1, "%s: tls_read: %s", __func__, tls_error(tls));
+			errx(1, "%s: tls_read: %s", __func__, tls_error(ctx));
 		}
 
 		if (r == 0)
@@ -340,7 +338,7 @@ again:
 }
 
 char *
-https_response(struct tls *tls, size_t *lenp)
+https_response(size_t *lenp)
 {
 	size_t	 i, len, nr;
 	char	*buf, *q, c;
@@ -359,7 +357,7 @@ https_response(struct tls *tls, size_t *lenp)
 			len *= 2;
 		}
 again:
-		ret = tls_read(tls, &c, 1, &nr);
+		ret = tls_read(ctx, &c, 1, &nr);
 		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
 			goto again;
 
@@ -380,13 +378,13 @@ again:
 }
 
 int
-https_parse_headers(struct tls *tls, struct headers *hdrs)
+https_parse_headers(struct headers *hdrs)
 {
 	char		*buf;
 	size_t		 len;
 	int		 ret;
 
-	while ((buf = https_response(tls, &len))) {
+	while ((buf = https_response(&len))) {
 		if (len == 0)
 			break; /* end of headers */
 
@@ -405,13 +403,13 @@ exit:
 }
 
 int
-https_response_code(struct tls *tls)
+https_response_code(void)
 {
 	char		*buf;
 	size_t		 len;
 	int		 res;
 
-	buf = https_response(tls, &len);
+	buf = https_response(&len);
 	res = response_code(buf);
 	free(buf);
 	return (res);
