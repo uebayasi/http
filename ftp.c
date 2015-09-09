@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

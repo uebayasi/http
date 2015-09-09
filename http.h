@@ -27,7 +27,7 @@ struct headers {
 
 struct url {
 	char	host[HOST_NAME_MAX+1];
-	char	port[16];
+	char	port[NI_MAXSERV];
 	char	user[LOGIN_NAME_MAX];
 	char	pass[256];
 	char	path[BUFSIZ];
