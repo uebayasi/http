@@ -192,7 +192,7 @@ url_parse(const char *url_str, struct url *url)
 		url_str++;
 
 #ifdef SMALL
-	if (strstr(url, "//") && strncasecmp(url, "http://", 7))
+	if (strstr(url_str, "//") && strncasecmp(url_str, "http://", 7))
 		errx(1, "Unknown protocol");
 #endif
 
