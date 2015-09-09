@@ -53,7 +53,7 @@ main(int argc, char *argv[])
 	int		 ch, code, i, resume = 0, retries = 0;
 
 	if (tame(TAME_DNS | TAME_INET | TAME_STDIO | TAME_IOCTL | 
-	    TAME_CPATH | TAME_WPATH, paths) != 0)
+	    TAME_CPATH | TAME_WPATH | TAME_ABORT, paths) != 0)
 		err(1, "tame");
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
