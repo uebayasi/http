@@ -163,7 +163,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	struct stat	 sb;
 	FILE		*data_fin;
 	char		*buf, *dir, *file;
-	off_t		 counter, file_sz;
+	off_t		 offset, file_sz;
 	int	 	 data_sock, flags, ret;
 
 	log_info("Using binary mode to transfer files.\n");
@@ -193,13 +193,13 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if ((data_fin = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	counter = 0;
+	offset = 0;
 	if (resume) {
 		if (stat(out_fn, &sb) == 0) {
 			fprintf(ctrl_fin, "REST %lld\r\n", sb.st_size);
 			fflush(ctrl_fin);
 			if (ftp_response_code("3") == 0)
-				counter = sb.st_size;
+				offset = sb.st_size;
 			else
 				resume = 0;
 		} else
@@ -222,8 +222,8 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	flags = O_CREAT | O_WRONLY;
 	flags |= (resume) ? O_APPEND : O_TRUNC;
 
-	start_progress_meter(file_sz, &counter);
-	retr_file(data_fin, out_fn, flags, &counter);
+	start_progress_meter(file_sz, &offset);
+	retr_file(data_fin, out_fn, flags, &offset);
 	stop_progress_meter();
 
 	/* RETR response after the file transfer completion */

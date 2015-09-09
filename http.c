@@ -108,7 +108,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 {
 	struct stat	 sb;
 	char		 range[BUFSIZ];
-	off_t		 counter;
+	off_t		 offset;
 	const char	*basic_auth = NULL;
 	FILE		*fin;
 	int		 flags, res = -1;
@@ -116,10 +116,10 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if ((fin = fdopen(s, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	counter = 0;
+	offset = 0;
 	if (resume) {
 		if (stat(out_fn, &sb) == 0) {
-			counter = sb.st_size;
+			offset = sb.st_size;
 			snprintf(range, sizeof(range),
 			    "Range: bytes=%lld-\r\n", sb.st_size);
 		} else
@@ -157,14 +157,14 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		flags |= O_APPEND;
 	else {
 		flags |= O_TRUNC;
-		counter = 0;
+		offset = 0;
 	}
 
 	switch (res) {
 	case 206:	/* Partial content */
 	case 200:	/* OK */
-		start_progress_meter(hdrs->c_len + counter, &counter);
-		retr_file(fin, out_fn, flags, &counter);
+		start_progress_meter(hdrs->c_len + offset, &offset);
+		retr_file(fin, out_fn, flags, &offset);
 		stop_progress_meter();
 		break;
 	}

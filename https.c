@@ -201,14 +201,14 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	struct stat		 sb;
 	char			 range[BUFSIZ];
 	const char		*basic_auth = NULL;
-	off_t			 counter;
+	off_t			 offset;
 	int			 fd, flags, res = -1, ret;
 	extern const char	*ua;
 
-	counter = 0;
+	offset = 0;
 	if (resume) {
 		if (stat(out_fn, &sb) == 0) {
-			counter = sb.st_size;
+			offset = sb.st_size;
 			snprintf(range, sizeof(range),
 			    "Range: bytes=%lld-\r\n", sb.st_size);
 		} else
@@ -245,7 +245,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		flags |= O_APPEND;
 	else {
 		flags |= O_TRUNC;
-		counter = 0;
+		offset = 0;
 	}
 
 	switch (res) {
@@ -256,8 +256,8 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		else if ((fd = open(out_fn, flags, 0666)) == -1)
 			err(1, "%s: open %s", __func__, out_fn);
 
-		start_progress_meter(hdrs->c_len + counter, &counter);
-		https_retr_file(ctx, fd, &counter);
+		start_progress_meter(hdrs->c_len + offset, &offset);
+		https_retr_file(ctx, fd, &offset);
 		stop_progress_meter();
 		if (fd != STDOUT_FILENO)
 			close(fd);
