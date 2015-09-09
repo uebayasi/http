@@ -44,7 +44,7 @@ int		 tcp_connect(const char *, const char *);
 int		 header_insert(struct headers *, const char *);
 void		 log_info(const char *, ...);
 void		 log_request(struct url *, struct url *);
-void	 	 retr_file(FILE *, const char *, int, off_t *);
+void	 	 retr_file(FILE *, const char *, int, off_t, off_t);
 int		 response_code(char *);
 char		*url_encode(const char *);
 void		 url_parse(const char *, struct url *);

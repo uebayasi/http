@@ -33,7 +33,6 @@
 #include <unistd.h>
 
 #include "http.h"
-#include "progressmeter.h"
 
 static FILE	*ctrl_fin;
 static int	 ctrl_sock = -1;
@@ -221,11 +220,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 
 	flags = O_CREAT | O_WRONLY;
 	flags |= (resume) ? O_APPEND : O_TRUNC;
-
-	start_progress_meter(file_sz, &offset);
-	retr_file(data_fin, out_fn, flags, &offset);
-	stop_progress_meter();
-
+	retr_file(data_fin, out_fn, flags, file_sz, offset);
 	/* RETR response after the file transfer completion */
 	ftp_response_code("2");
 	ret = 200;

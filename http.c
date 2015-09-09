@@ -27,7 +27,6 @@
 #include <util.h>
 
 #include "http.h"
-#include "progressmeter.h"
 
 void	 http_init(void);
 int	 http_parse_headers(FILE *, struct headers *);
@@ -163,9 +162,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	switch (res) {
 	case 206:	/* Partial content */
 	case 200:	/* OK */
-		start_progress_meter(hdrs->c_len + offset, &offset);
-		retr_file(fin, out_fn, flags, &offset);
-		stop_progress_meter();
+		retr_file(fin, out_fn, flags, hdrs->c_len + offset, offset);
 		break;
 	}
 

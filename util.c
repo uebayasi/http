@@ -60,6 +60,7 @@
 #include <unistd.h>
 
 #include "http.h"
+#include "progressmeter.h"
 
 const char	*proto_str(int);
 int		 unsafe_char(const char *);
@@ -288,7 +289,7 @@ header_insert(struct headers *hdrs, const char *buf)
 }
 
 void
-retr_file(FILE *fin, const char *out_fn, int flags, off_t *ctr)
+retr_file(FILE *fin, const char *out_fn, int flags, off_t file_sz, off_t offset)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
@@ -307,10 +308,11 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t *ctr)
 			err(1, "%s: malloc", __func__);
 	}
 
+	start_progress_meter(file_sz, &offset);
 	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fin)) > 0) {
 		if (ferror(fin))
 			err(1, "%s: fread", __func__);
-		*ctr += r;
+		offset += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
 			if ((i = write(out, cp, wlen)) == -1) {
 				if (errno != EINTR)
@@ -322,6 +324,7 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t *ctr)
 	if (ferror(fin))
 		err(1, "%s: fread", __func__);
 
+	stop_progress_meter();
 	if (out != STDOUT_FILENO)
 		close(out);
 }
