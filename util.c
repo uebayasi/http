@@ -321,10 +321,11 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t file_sz, off_t offset)
 				break;
 		}
 	}
+
+	stop_progress_meter();
 	if (ferror(fin))
 		err(1, "%s: fread", __func__);
 
-	stop_progress_meter();
 	if (out != STDOUT_FILENO)
 		close(out);
 }
