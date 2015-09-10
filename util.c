@@ -50,6 +50,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
@@ -268,7 +269,7 @@ header_insert(struct headers *hdrs, const char *buf)
 	if (strncasecmp(buf, "Content-Length: ", 16) == 0) {
 		buf = strchr(buf, ' ');
 		buf++;
-		hdrs->c_len = strtonum(buf, 0, LLONG_MAX, &errstr);
+		hdrs->c_len = strtonum(buf, 0, INT64_MAX, &errstr);
 		if (errstr) {
 			warn("%s: strtonum", __func__);
 			return (-1);
