@@ -85,7 +85,16 @@ main(int argc, char *argv[])
 	if (argc == 0)
 		usage();
 
+#ifdef SMALL
+	/*
+	 * "/etc/ssl" needn't be whitelisted for SMALL variant
+	 * since we disable HTTPS support.
+	 */
+	paths[1] = output;
+#else
 	paths[2] = output;
+#endif
+
 	if (tame(TAME_DNS | TAME_INET | TAME_STDIO | TAME_IOCTL | 
 	    TAME_CPATH | TAME_WPATH | TAME_ABORT, paths) != 0)
 		err(1, "tame");
