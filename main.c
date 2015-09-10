@@ -50,12 +50,8 @@ main(int argc, char *argv[])
 	struct headers	 res_hdrs;
 	char		*proxy_str, *url_str;
 	const char	*fn, *output = NULL, *port = NULL;
-	const char	*paths[] = { ".", "/etc/ssl", NULL };
+	const char	*paths[4] = { ".", "/etc/ssl", NULL, NULL };
 	int		 ch, code, i, resume = 0, retries = 0;
-
-	if (tame(TAME_DNS | TAME_INET | TAME_STDIO | TAME_IOCTL | 
-	    TAME_CPATH | TAME_WPATH | TAME_ABORT, paths) != 0)
-		err(1, "tame");
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
@@ -88,6 +84,11 @@ main(int argc, char *argv[])
 	argv += optind;
 	if (argc == 0)
 		usage();
+
+	paths[2] = output;
+	if (tame(TAME_DNS | TAME_INET | TAME_STDIO | TAME_IOCTL | 
+	    TAME_CPATH | TAME_WPATH | TAME_ABORT, paths) != 0)
+		err(1, "tame");
 
 	if ((proxy_str = getenv("http_proxy")) != NULL && *proxy_str == '\0')
 		proxy_str = NULL;
