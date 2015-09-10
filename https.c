@@ -233,11 +233,11 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	    (basic_auth) ? basic_auth : "");
 
 	if ((res = https_response_code()) == -1)
-		goto cleanup;
+		goto err;
 
 	if (https_parse_headers(hdrs) != 0) {
 		res = -1;
-		goto cleanup;
+		goto err;
 	}
 
 	flags = O_CREAT | O_WRONLY;
@@ -255,7 +255,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		break;
 	}
 
-cleanup:
+err:
 	while ((ret = tls_close(ctx)) != 0)
 		if (ret != TLS_READ_AGAIN && ret != TLS_WRITE_AGAIN)
 			errx(1, "%s: tls_close: %s", __func__, tls_error(ctx));
@@ -389,13 +389,13 @@ https_parse_headers(struct headers *hdrs)
 			break; /* end of headers */
 
 		if (header_insert(hdrs, buf) != 0)
-			goto exit;
+			goto err;
 
 		free(buf);
 	}
 
 	ret = 0;
-exit:
+err:
 	free(buf);
 	return (ret);
 }

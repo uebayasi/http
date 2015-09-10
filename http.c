@@ -144,11 +144,11 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 
 	fflush(fin);
 	if ((res = http_response_code(fin)) == -1)
-		goto cleanup;
+		goto err;
 
 	if (http_parse_headers(fin, hdrs) != 0) {
 		res = -1;
-		goto cleanup;
+		goto err;
 	}
 
 	flags = O_CREAT | O_WRONLY;
@@ -166,7 +166,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		break;
 	}
 
-cleanup:
+err:
 	fclose(fin);
 	return (res);
 }
@@ -183,13 +183,13 @@ http_parse_headers(FILE *fin, struct headers *hdrs)
 			break; /* end of headers */
 
 		if (header_insert(hdrs, buf) != 0)
-			goto exit;
+			goto err;
 		
 		free(buf);
 	}
 
 	ret = 0;
-exit:
+err:
 	free(buf);
 	return (ret);
 }
