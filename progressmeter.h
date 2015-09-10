@@ -1,3 +1,5 @@
+#ifndef HTTP_PROGRESSMETER_H_
+#define HTTP_PROGRESSMETER_H_ 1
 /* $OpenBSD: progressmeter.h,v 1.3 2015/01/14 13:54:13 djm Exp $ */
 /*
  * Copyright (c) 2002 Nils Nordman.  All rights reserved.
@@ -25,3 +27,5 @@
 
 void	start_progress_meter(off_t, off_t *);
 void	stop_progress_meter(void);
+
+#endif 
