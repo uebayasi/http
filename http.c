@@ -176,16 +176,14 @@ http_parse_headers(FILE *fin, struct headers *hdrs)
 {
 	char		*buf;
 	size_t		 len;
-	int		 ret;
+	int		 ret = -1;
 
 	while ((buf = http_response(fin, &len))) {
 		if (len == 0)
 			break; /* end of headers */
 
-		if (header_insert(hdrs, buf) != 0) {
-			ret = -1;
+		if (header_insert(hdrs, buf) != 0)
 			goto exit;
-		}
 		
 		free(buf);
 	}

@@ -382,16 +382,14 @@ https_parse_headers(struct headers *hdrs)
 {
 	char		*buf;
 	size_t		 len;
-	int		 ret;
+	int		 ret = -1;
 
 	while ((buf = https_response(&len))) {
 		if (len == 0)
 			break; /* end of headers */
 
-		if (header_insert(hdrs, buf) != 0) {
-			ret = -1;
+		if (header_insert(hdrs, buf) != 0)
 			goto exit;
-		}
 
 		free(buf);
 	}
