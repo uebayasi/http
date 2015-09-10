@@ -207,7 +207,7 @@ http_response(FILE *fp, size_t *len)
 		return (NULL);
 	}
 
-	if (buf[ln - 1] == '\r')
+	if (ln > 0 && buf[ln - 1] == '\r')
 		buf[--ln] = '\0';
 
 	*len = ln;
