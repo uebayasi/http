@@ -63,8 +63,8 @@ ftp_connect(struct url *url, struct url *proxy)
 		err(1, "%s: fdopen", __func__);
 
 	if (proxy) {
-		fprintf(ctrl_fin, "CONNECT %s:%s\r\n", url->host, url->port);
-		fflush(ctrl_fin);
+		send_cmd(__func__, ctrl_fin,
+		    "CONNECT %s:%s\r\n", url->host, url->port);
 		code = http_response_code(ctrl_fin);
 		if (code != 200)
 			errx(1, "Error retrieving file: %s", http_errstr(code));
@@ -105,19 +105,16 @@ interpret_command(struct url *url)
 
 	free(line);
 
-	fprintf(ctrl_fin, "TYPE I\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "TYPE I\r\n");
 	if (ftp_response_code("2") != 0)
 		exit(-1);
 
-	fprintf(ctrl_fin, "CWD %s\r\n", url->path);
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "CWD %s\r\n", url->path);
 	if (ftp_response_code("2") != 0)
 		errx(1, "%s: %s No such file or directory",
 		    __func__, url->path);
 
-	fprintf(ctrl_fin, "TYPE A\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "TYPE A\r\n");
 	if (ftp_response_code("2") != 0)
 		exit(-1);
 
@@ -127,8 +124,7 @@ interpret_command(struct url *url)
 	if ((data_fin = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	fprintf(ctrl_fin, "NLST\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "NLST\r\n");
 	/* Data connection established */
 	if ((buf = ftp_response()) == NULL)
 		errx(1, "%s: Error retrieving file", __func__);
@@ -148,8 +144,7 @@ interpret_command(struct url *url)
 	ftp_response_code("2");
 	ret = 0;
 exit:
-	fprintf(ctrl_fin, "QUIT\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "QUIT\r\n");
 	ftp_response_code("2");
 
 	exit(ret);
@@ -166,8 +161,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	int	 	 data_sock, flags, ret;
 
 	log_info("Using binary mode to transfer files.\n");
-	fprintf(ctrl_fin, "TYPE I\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "TYPE I\r\n");
 	if (ftp_response_code("2") != 0)
 		return (-1);
 
@@ -178,8 +172,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		err(1, "%s: basename", __func__);
 
 	if (strcmp(dir, "/") != 0) {
-		fprintf(ctrl_fin, "CWD %s\r\n", dir);
-		fflush(ctrl_fin);
+		send_cmd(__func__,ctrl_fin, "CWD %s\r\n", dir);
 		if (ftp_response_code("2") != 0)
 			errx(1, "%s: %s No such file or directory",
 			    __func__, dir);
@@ -195,8 +188,8 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	offset = 0;
 	if (resume) {
 		if (stat(out_fn, &sb) == 0) {
-			fprintf(ctrl_fin, "REST %lld\r\n", sb.st_size);
-			fflush(ctrl_fin);
+			send_cmd(__func__, ctrl_fin,
+			    "REST %lld\r\n", sb.st_size);
 			if (ftp_response_code("3") == 0)
 				offset = sb.st_size;
 			else
@@ -205,9 +198,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 			resume = 0;
 	}
 
-	fprintf(ctrl_fin, "RETR %s\r\n", file);
-	fflush(ctrl_fin);
-
+	send_cmd(__func__,ctrl_fin, "RETR %s\r\n", file);
 	/* Data connection established */
 	if ((buf = ftp_response()) == NULL)
 		return (-1);
@@ -226,8 +217,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	ret = 200;
 
 exit:
-	fprintf(ctrl_fin, "QUIT\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "QUIT\r\n");
 	ftp_response_code("2");
 	return (ret);
 }
@@ -243,8 +233,7 @@ ftp_size(const char *fn)
 	old_verbose = verbose;
 	verbose = 0;
 	file_sz = 0;
-	fprintf(ctrl_fin, "SIZE %s\r\n", fn);
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "SIZE %s\r\n", fn);
 	if ((buf = ftp_response()) == NULL)
 		goto exit;
 
@@ -281,8 +270,7 @@ ftp_pasv(void)
 
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
-	fprintf(ctrl_fin, "PASV\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "PASV\r\n");
 	while ((buf = fparseln(ctrl_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
 		if (len != 3 && buf[3] != ' ') { /* Continue till last line */
 			free(buf);
@@ -339,17 +327,15 @@ ftp_auth(struct url *url)
 	if (url->user[0] == '\0')
 		(void)strlcpy(url->user, "anonymous", sizeof(url->user));
 
-	fprintf(ctrl_fin, "USER %s\r\n", url->user);
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fin, "USER %s\r\n", url->user);
 	if (ftp_response_code("23") != 0)
 		return (-1);
 
 	if (url->pass[0])
-		fprintf(ctrl_fin, "PASS %s\r\n", url->pass);
+		send_cmd(__func__, ctrl_fin, "PASS %s\r\n", url->pass);
 	else
-		fprintf(ctrl_fin, "PASS\r\n");
+		send_cmd(__func__, ctrl_fin, "PASS\r\n");
 
-	fflush(ctrl_fin);
 	if (ftp_response_code("2") != 0)
 		return (-1);
 

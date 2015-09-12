@@ -352,6 +352,19 @@ base64_encode(const char *user, const char *pass)
 	return (basic_auth);
 }
 
+void
+send_cmd(const char *where, FILE *fp, const char *fmt, ...)
+{
+	va_list		ap;
+
+	va_start(ap, fmt);
+	if (vfprintf(fp, fmt, ap) == -1)
+		errx(1, "%s: vfprintf failed", where);
+	va_end(ap);
+	if (fflush(fp) != 0)
+		err(1, "%s: fflush", where);
+}
+
 int
 response_code(char *buf)
 {

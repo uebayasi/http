@@ -69,7 +69,7 @@ proxy_connect(int sock, struct url *url, struct url *proxy)
 	if (proxy->user[0] || proxy->pass[0])
 		proxy_auth = base64_encode(proxy->user, proxy->pass);
 
-	fprintf(fp,
+	send_cmd(__func__, fp,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -82,7 +82,6 @@ proxy_connect(int sock, struct url *url, struct url *proxy)
 	    (proxy_auth) ? "Proxy-Authorization: Basic " : "",
 	    (proxy_auth) ? proxy_auth : "");
 
-	fflush(fp);
 	code = http_response_code(fp);
 	if (code != 200)
 		errx(1, "Error retrieving file: %s", http_errstr(code));
@@ -112,7 +111,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if (url->user[0] || url->pass[0])
 		basic_auth = base64_encode(url->user, url->pass);
 
-	fprintf(fp,
+	send_cmd(__func__, fp,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -126,7 +125,6 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	    (basic_auth) ? "Authorization: Basic " : "",
 	    (basic_auth) ? basic_auth : "");
 
-	fflush(fp);
 	if ((res = http_response_code(fp)) == -1)
 		goto err;
 
