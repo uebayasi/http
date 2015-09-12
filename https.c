@@ -182,7 +182,7 @@ https_connect(struct url *url, struct url *proxy)
 	}
 
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "443", sizeof(url->port));
+		(void)strlcpy(url->port, "https", sizeof(url->port));
 
 	if ((s = http_connect(url, proxy)) == -1)
 		return (-1);
