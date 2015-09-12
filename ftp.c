@@ -35,7 +35,6 @@
 #include "http.h"
 
 static FILE	*ctrl_fin;
-static int	 ctrl_sock = -1;
 
 int	 ftp_auth(struct url *);
 int	 ftp_response_code(const char *);
@@ -48,7 +47,7 @@ int
 ftp_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
-	int		 code;
+	int		 code, ctrl_sock;
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "ftp", sizeof(url->port));
