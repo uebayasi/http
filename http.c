@@ -36,22 +36,10 @@ int	 proxy_connect(int, struct url *, struct url *);
 extern const char	*ua;
 static int		 s = -1;
 
-void
-http_init(void)
-{
-}
-
 int
 http_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
-	static int	 init = 0;
-
-	/* One time initialization */
-	if (init == 0) {
-		http_init();
-		init = 1;
-	}
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "80", sizeof(url->port));
