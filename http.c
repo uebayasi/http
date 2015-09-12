@@ -34,12 +34,13 @@ char	*http_response(FILE *, size_t *);
 int	 proxy_connect(int, struct url *, struct url *);
 
 extern const char	*ua;
-static int		 s = -1;
+static FILE		*fp;
 
 int
 http_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
+	int		 s;
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "www", sizeof(url->port));
@@ -50,6 +51,9 @@ http_connect(struct url *url, struct url *proxy)
 	if ((s = tcp_connect(host, port)) == -1)
 		return (-1);
 
+	if ((fp = fdopen(s, "r+")) == NULL)
+		err(1, "%s: fdopen", __func__);
+
 	if (proxy && proxy_connect(s, url, proxy) == -1)
 		return (-1);
 
@@ -59,12 +63,8 @@ http_connect(struct url *url, struct url *proxy)
 int
 proxy_connect(int sock, struct url *url, struct url *proxy)
 {
-	FILE		*fp;
 	const char	*proxy_auth = NULL;
 	int		 code;
-
-	if ((fp = fdopen(sock, "r+")) == NULL)
-		err(1, "%s: fdopen", __func__);
 
 	if (proxy->user[0] || proxy->pass[0])
 		proxy_auth = base64_encode(proxy->user, proxy->pass);
@@ -97,11 +97,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	char		 range[BUFSIZ];
 	off_t		 offset;
 	const char	*basic_auth = NULL;
-	FILE		*fin;
 	int		 flags, res = -1;
-
-	if ((fin = fdopen(s, "r+")) == NULL)
-		err(1, "%s: fdopen", __func__);
 
 	offset = 0;
 	if (resume) {
@@ -116,7 +112,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if (url->user[0] || url->pass[0])
 		basic_auth = base64_encode(url->user, url->pass);
 
-	fprintf(fin,
+	fprintf(fp,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -130,11 +126,11 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	    (basic_auth) ? "Authorization: Basic " : "",
 	    (basic_auth) ? basic_auth : "");
 
-	fflush(fin);
-	if ((res = http_response_code(fin)) == -1)
+	fflush(fp);
+	if ((res = http_response_code(fp)) == -1)
 		goto err;
 
-	if (http_parse_headers(fin, hdrs) != 0) {
+	if (http_parse_headers(fp, hdrs) != 0) {
 		res = -1;
 		goto err;
 	}
@@ -150,12 +146,12 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	switch (res) {
 	case 206:	/* Partial content */
 	case 200:	/* OK */
-		retr_file(fin, out_fn, flags, hdrs->c_len + offset, offset);
+		retr_file(fp, out_fn, flags, hdrs->c_len + offset, offset);
 		break;
 	}
 
 err:
-	fclose(fin);
+	fclose(fp);
 	return (res);
 }
 
