@@ -34,7 +34,7 @@
 
 #include "http.h"
 
-static FILE	*ctrl_fin;
+static FILE	*ctrl_fp;
 
 int	 ftp_auth(struct url *);
 int	 ftp_response_code(const char *);
@@ -58,13 +58,13 @@ ftp_connect(struct url *url, struct url *proxy)
 	if ((ctrl_sock = tcp_connect(host, port)) == -1)
 		return (-1);
 
-	if ((ctrl_fin = fdopen(ctrl_sock, "r+")) == NULL)
+	if ((ctrl_fp = fdopen(ctrl_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
 	if (proxy) {
-		send_cmd(__func__, ctrl_fin,
+		send_cmd(__func__, ctrl_fp,
 		    "CONNECT %s:%s\r\n", url->host, url->port);
-		code = http_response_code(ctrl_fin);
+		code = http_response_code(ctrl_fp);
 		if (code != 200)
 			errx(1, "Error retrieving file: %s", http_errstr(code));
 	}
@@ -91,7 +91,7 @@ ftp_connect(struct url *url, struct url *proxy)
 void
 interpret_command(struct url *url)
 {
-	FILE		*data_fin;
+	FILE		*data_fp;
 	char		*buf, *line;
 	size_t		 len;
 	int		 data_sock, ret;
@@ -104,26 +104,26 @@ interpret_command(struct url *url)
 
 	free(line);
 
-	send_cmd(__func__, ctrl_fin, "TYPE I\r\n");
+	send_cmd(__func__, ctrl_fp, "TYPE I\r\n");
 	if (ftp_response_code("2") != 0)
 		exit(-1);
 
-	send_cmd(__func__, ctrl_fin, "CWD %s\r\n", url->path);
+	send_cmd(__func__, ctrl_fp, "CWD %s\r\n", url->path);
 	if (ftp_response_code("2") != 0)
 		errx(1, "%s: %s No such file or directory",
 		    __func__, url->path);
 
-	send_cmd(__func__, ctrl_fin, "TYPE A\r\n");
+	send_cmd(__func__, ctrl_fp, "TYPE A\r\n");
 	if (ftp_response_code("2") != 0)
 		exit(-1);
 
 	if ((data_sock = ftp_pasv()) == -1)
 		exit(-1);
 
-	if ((data_fin = fdopen(data_sock, "r+")) == NULL)
+	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	send_cmd(__func__, ctrl_fin, "NLST\r\n");
+	send_cmd(__func__, ctrl_fp, "NLST\r\n");
 	/* Data connection established */
 	if ((buf = ftp_response()) == NULL)
 		errx(1, "%s: Error retrieving file", __func__);
@@ -134,7 +134,7 @@ interpret_command(struct url *url)
 	} else
 		free(buf);
 
-	while ((line = fparseln(data_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
+	while ((line = fparseln(data_fp, &len, NULL, "\0\0\0", 0)) != NULL) {
 		printf("%s\n", line);
 		free(line);
 	}
@@ -143,7 +143,7 @@ interpret_command(struct url *url)
 	ftp_response_code("2");
 	ret = 0;
 exit:
-	send_cmd(__func__, ctrl_fin, "QUIT\r\n");
+	send_cmd(__func__, ctrl_fp, "QUIT\r\n");
 	ftp_response_code("2");
 
 	exit(ret);
@@ -154,13 +154,13 @@ int
 ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 {
 	struct stat	 sb;
-	FILE		*data_fin;
+	FILE		*data_fp;
 	char		*buf, *dir, *file;
 	off_t		 offset, file_sz;
 	int	 	 data_sock, flags, ret;
 
 	log_info("Using binary mode to transfer files.\n");
-	send_cmd(__func__, ctrl_fin, "TYPE I\r\n");
+	send_cmd(__func__, ctrl_fp, "TYPE I\r\n");
 	if (ftp_response_code("2") != 0)
 		return (-1);
 
@@ -171,7 +171,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		err(1, "%s: basename", __func__);
 
 	if (strcmp(dir, "/") != 0) {
-		send_cmd(__func__,ctrl_fin, "CWD %s\r\n", dir);
+		send_cmd(__func__, ctrl_fp, "CWD %s\r\n", dir);
 		if (ftp_response_code("2") != 0)
 			errx(1, "%s: %s No such file or directory",
 			    __func__, dir);
@@ -181,13 +181,13 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if ((data_sock = ftp_pasv()) == -1)
 		return (-1);
 
-	if ((data_fin = fdopen(data_sock, "r+")) == NULL)
+	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
 	offset = 0;
 	if (resume) {
 		if (stat(out_fn, &sb) == 0) {
-			send_cmd(__func__, ctrl_fin,
+			send_cmd(__func__, ctrl_fp,
 			    "REST %lld\r\n", sb.st_size);
 			if (ftp_response_code("3") == 0)
 				offset = sb.st_size;
@@ -197,7 +197,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 			resume = 0;
 	}
 
-	send_cmd(__func__,ctrl_fin, "RETR %s\r\n", file);
+	send_cmd(__func__, ctrl_fp, "RETR %s\r\n", file);
 	/* Data connection established */
 	if ((buf = ftp_response()) == NULL)
 		return (-1);
@@ -210,13 +210,13 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 
 	flags = O_CREAT | O_WRONLY;
 	flags |= (resume) ? O_APPEND : O_TRUNC;
-	retr_file(data_fin, out_fn, flags, file_sz, offset);
+	retr_file(data_fp, out_fn, flags, file_sz, offset);
 	/* RETR response after the file transfer completion */
 	ftp_response_code("2");
 	ret = 200;
 
 exit:
-	send_cmd(__func__, ctrl_fin, "QUIT\r\n");
+	send_cmd(__func__, ctrl_fp, "QUIT\r\n");
 	ftp_response_code("2");
 	return (ret);
 }
@@ -232,7 +232,7 @@ ftp_size(const char *fn)
 	old_verbose = verbose;
 	verbose = 0;
 	file_sz = 0;
-	send_cmd(__func__, ctrl_fin, "SIZE %s\r\n", fn);
+	send_cmd(__func__, ctrl_fp, "SIZE %s\r\n", fn);
 	if ((buf = ftp_response()) == NULL)
 		goto exit;
 
@@ -269,8 +269,8 @@ ftp_pasv(void)
 
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
-	send_cmd(__func__, ctrl_fin, "PASV\r\n");
-	while ((buf = fparseln(ctrl_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
+	send_cmd(__func__, ctrl_fp, "PASV\r\n");
+	while ((buf = fparseln(ctrl_fp, &len, NULL, "\0\0\0", 0)) != NULL) {
 		if (len != 3 && buf[3] != ' ') { /* Continue till last line */
 			free(buf);
 			continue;
@@ -326,14 +326,14 @@ ftp_auth(struct url *url)
 	if (url->user[0] == '\0')
 		(void)strlcpy(url->user, "anonymous", sizeof(url->user));
 
-	send_cmd(__func__, ctrl_fin, "USER %s\r\n", url->user);
+	send_cmd(__func__, ctrl_fp, "USER %s\r\n", url->user);
 	if (ftp_response_code("23") != 0)
 		return (-1);
 
 	if (url->pass[0])
-		send_cmd(__func__, ctrl_fin, "PASS %s\r\n", url->pass);
+		send_cmd(__func__, ctrl_fp, "PASS %s\r\n", url->pass);
 	else
-		send_cmd(__func__, ctrl_fin, "PASS\r\n");
+		send_cmd(__func__, ctrl_fp, "PASS\r\n");
 
 	if (ftp_response_code("2") != 0)
 		return (-1);
@@ -367,7 +367,7 @@ ftp_response(void)
 	size_t		 len;
 
 	buf = NULL;
-	while ((buf = fparseln(ctrl_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
+	while ((buf = fparseln(ctrl_fp, &len, NULL, "\0\0\0", 0)) != NULL) {
 		if (buf[len - 1] == '\r')
 			buf[--len] = '\0';
 
