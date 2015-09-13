@@ -38,7 +38,7 @@ static FILE	*ctrl_fp;
 int	 ftp_auth(struct url *);
 int	 ftp_response_code(const char *);
 off_t	 ftp_size(const char *);
-char	*ftp_response(void);
+char	*ftp_parseln(void);
 int	 ftp_pasv(void);
 
 int
@@ -118,7 +118,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 
 	send_cmd(__func__, ctrl_fp, "RETR %s\r\n", file);
 	/* Data connection established */
-	if ((buf = ftp_response()) == NULL)
+	if ((buf = ftp_parseln()) == NULL)
 		return (-1);
 	else if (buf[0] != '1') {
 		ret = -1;
@@ -150,7 +150,7 @@ ftp_size(const char *fn)
 	verbose = 0;
 	file_sz = 0;
 	send_cmd(__func__, ctrl_fp, "SIZE %s\r\n", fn);
-	if ((buf = ftp_response()) == NULL)
+	if ((buf = ftp_parseln()) == NULL)
 		goto exit;
 
 	if (buf[0] == '2') {
@@ -186,7 +186,7 @@ ftp_pasv(void)
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
 	send_cmd(__func__, ctrl_fp, "PASV\r\n");
-	if ((buf = ftp_response()) == NULL)
+	if ((buf = ftp_parseln()) == NULL)
 		return (-1);
 
 	if (buf[0] != '2')
@@ -258,7 +258,7 @@ ftp_response_code(const char *res_code)
 	int	 ret;
 
 	ret = -1;
-	if ((buf = ftp_response()) == NULL)
+	if ((buf = ftp_parseln()) == NULL)
 		goto exit;
 
 	if (strchr(res_code, buf[0]) == NULL)
@@ -271,7 +271,7 @@ exit:
 }
 
 char *
-ftp_response(void)
+ftp_parseln(void)
 {
 	char		*buf;
 	size_t		 len;
