@@ -51,8 +51,8 @@ ftp_connect(struct url *url, struct url *proxy)
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "ftp", sizeof(url->port));
 
-	host = (proxy) ? proxy->host : url->host;
-	port = (proxy) ? proxy->port : url->port;
+	host = proxy ? proxy->host : url->host;
+	port = proxy ? proxy->port : url->port;
 
 	if ((ctrl_sock = tcp_connect(host, port)) == -1)
 		return (-1);

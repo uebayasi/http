@@ -42,8 +42,8 @@ http_connect(struct url *url, struct url *proxy)
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "www", sizeof(url->port));
 
-	host = (proxy) ? proxy->host : url->host;
-	port = (proxy) ? proxy->port : url->port;
+	host = proxy ? proxy->host : url->host;
+	port = proxy ? proxy->port : url->port;
 	if ((s = tcp_connect(host, port)) == -1)
 		return (-1);
 
