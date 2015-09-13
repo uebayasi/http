@@ -180,47 +180,40 @@ ftp_pasv(void)
 {
 	struct sockaddr_in	 data_addr;
 	char			*buf, *s, *e;
-	size_t			 len;
 	uint			 addr[4], port[2];
 	int			 sock, ret;
 
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
 	send_cmd(__func__, ctrl_fp, "PASV\r\n");
-	while ((buf = fparseln(ctrl_fp, &len, NULL, "\0\0\0", 0)) != NULL) {
-		if (len != 3 && buf[3] != ' ') { /* Continue till last line */
-			free(buf);
-			continue;
-		}
+	if ((buf = ftp_response()) == NULL)
+		return (-1);
 
-		if (buf[0] != '2')
-			errx(1, "Can't continue without PASV support");
+	if (buf[0] != '2')
+		errx(1, "Can't continue without PASV support");
 
-		if ((s = strchr(buf, '(')) == NULL) {
-			warnx("Malformed PASV reply");
-			return (-1);
-		}
-
-		if ((e = strchr(buf, ')')) == NULL) {
-			warnx("Malformed PASV reply");
-			return (-1);
-		}
-
-		s++;
-		*e = '\0';
-		ret = sscanf(s, "%u,%u,%u,%u,%u,%u",
-		    &addr[0], &addr[1], &addr[2], &addr[3],
-		    &port[0], &port[1]);
-
-		if (ret != 6) {
-			warnx("Passive mode address scan failure");
-			return (-1);
-		}
-
-		free(buf);
-		break;
+	if ((s = strchr(buf, '(')) == NULL) {
+		warnx("Malformed PASV reply");
+		return (-1);
 	}
 
+	if ((e = strchr(buf, ')')) == NULL) {
+		warnx("Malformed PASV reply");
+		return (-1);
+	}
+
+	s++;
+	*e = '\0';
+	ret = sscanf(s, "%u,%u,%u,%u,%u,%u",
+	    &addr[0], &addr[1], &addr[2], &addr[3],
+	    &port[0], &port[1]);
+
+	if (ret != 6) {
+		warnx("Passive mode address scan failure");
+		return (-1);
+	}
+
+	free(buf);
 	memset(&data_addr, 0, sizeof(data_addr));
 	data_addr.sin_family = AF_INET;
 	data_addr.sin_len = sizeof(struct sockaddr_in);
