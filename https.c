@@ -221,9 +221,11 @@ https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 		goto err;
 
 	/* Expected a partial content but got full content */
-	if (offset && (res == 200))
+	if (offset && (res == 200)) {
+		offset = 0;
 		if (truncate(fn, 0) == -1)
 			err(1, "%s: truncate", __func__);
+	}
 
 	https_retr_file(fn, hdrs->c_len + offset, offset);
 err:
