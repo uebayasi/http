@@ -337,6 +337,9 @@ base64_encode(const char *user, const char *pass)
 	char		*creds, b64_creds[BUFSIZ];
 	int		 ret;
 
+	if (user == NULL || pass == NULL)
+		return (NULL);
+
 	if ((ret = asprintf(&creds, "%s:%s", user, pass)) == -1)
 		errx(1, "%s: asprintf failed", __func__);
 

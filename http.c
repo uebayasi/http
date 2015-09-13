@@ -63,12 +63,10 @@ http_connect(struct url *url, struct url *proxy)
 int
 proxy_connect(int sock, struct url *url, struct url *proxy)
 {
-	const char	*proxy_auth = NULL;
+	const char	*proxy_auth;
 	int		 code;
 
-	if (proxy->user[0] || proxy->pass[0])
-		proxy_auth = base64_encode(proxy->user, proxy->pass);
-
+	proxy_auth = base64_encode(proxy->user, proxy->pass);
 	send_cmd(__func__, fp,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
@@ -95,7 +93,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	struct stat	 sb;
 	char		 range[BUFSIZ];
 	off_t		 offset;
-	const char	*basic_auth = NULL;
+	const char	*basic_auth;
 	int		 flags, res = -1;
 
 	offset = 0;
@@ -108,9 +106,7 @@ http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 			resume = 0;
 	}
 
-	if (url->user[0] || url->pass[0])
-		basic_auth = base64_encode(url->user, url->pass);
-
+	basic_auth = base64_encode(url->user, url->pass);
 	send_cmd(__func__, fp,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"

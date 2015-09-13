@@ -200,7 +200,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 {
 	struct stat		 sb;
 	char			 range[BUFSIZ];
-	const char		*basic_auth = NULL;
+	const char		*basic_auth;
 	off_t			 offset;
 	int			 flags, res = -1, ret;
 	extern const char	*ua;
@@ -215,9 +215,7 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 			resume = 0;
 	}
 
-	if (url->user[0] || url->pass[0])
-		basic_auth = base64_encode(url->user, url->pass);
-
+	basic_auth = base64_encode(url->user, url->pass);
 	https_vprintf(ctx,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
