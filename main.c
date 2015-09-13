@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/stat.h>
 #include <sys/tame.h>
 
 #include <ctype.h>
@@ -216,18 +217,44 @@ url_connect(struct url *url, struct url *proxy)
 int
 url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 {
+	struct stat	sb;
+	off_t		offset;
+	int		fd, flags, ret;
+
+	offset = 0;
+	flags = O_CREAT | O_WRONLY;
+	if (strcmp(fn, "-") == 0)
+		fd = STDOUT_FILENO;
+	else {
+		if (resume && stat(fn, &sb) == 0) {
+			offset = sb.st_size;
+			flags |= O_APPEND;
+		}
+
+		if ((fd = open(fn, flags, 0666)) == -1)
+			err(1, "%s: open %s", __func__, fn);
+	}
+
 	switch (url->proto) {
 	case HTTP:
-		return http_get(url, fn, resume, hdrs);
+		ret = http_get(fd, offset, url, hdrs);
+		break;
 #ifndef SMALL
 	case HTTPS:
-		return https_get(url, fn, resume, hdrs);
+		ret = https_get(fd, offset, url, hdrs);
+		break;
 	case FTP:
-		return ftp_get(url, fn, resume, hdrs);
+		ret = ftp_get(fd, offset, url, hdrs);
+		break;
 #endif
 	default:
 		errx(1, "%s: Invalid protocol", __func__);
 	}
+
+	if (fd != STDOUT_FILENO)
+		close(fd);
+
+	return (ret);
 }
 
 void

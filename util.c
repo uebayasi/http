@@ -289,18 +289,12 @@ header_insert(struct headers *hdrs, const char *buf)
 }
 
 void
-retr_file(FILE *fin, const char *out_fn, int flags, off_t file_sz, off_t offset)
+retr_file(FILE *fp, int fd, off_t file_sz, off_t offset)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
 	char		*cp;
 	static char	*buf;
-	int		 out;
-
-	if (strcmp(out_fn, "-") == 0)
-		out = STDOUT_FILENO;
-	else if ((out = open(out_fn, flags, 0666)) == -1)
-		err(1, "%s: open %s", __func__, out_fn);
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
@@ -309,12 +303,12 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t file_sz, off_t offset)
 	}
 
 	start_progress_meter(file_sz, &offset);
-	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fin)) > 0) {
-		if (ferror(fin))
+	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fp)) > 0) {
+		if (ferror(fp))
 			err(1, "%s: fread", __func__);
 		offset += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
-			if ((i = write(out, cp, wlen)) == -1) {
+			if ((i = write(fd, cp, wlen)) == -1) {
 				if (errno != EINTR)
 					err(1, "%s: write", __func__);
 			} else if (i == 0)
@@ -323,11 +317,8 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t file_sz, off_t offset)
 	}
 
 	stop_progress_meter();
-	if (ferror(fin))
+	if (ferror(fp))
 		err(1, "%s: fread", __func__);
-
-	if (out != STDOUT_FILENO)
-		close(out);
 }
 
 const char *

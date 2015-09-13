@@ -14,7 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/stat.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -47,7 +46,7 @@ int
 ftp_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
-	int		 code, ctrl_sock;
+	int		 ctrl_sock;
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "ftp", sizeof(url->port));
@@ -61,13 +60,8 @@ ftp_connect(struct url *url, struct url *proxy)
 	if ((ctrl_fp = fdopen(ctrl_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	if (proxy) {
-		send_cmd(__func__, ctrl_fp,
-		    "CONNECT %s:%s\r\n", url->host, url->port);
-		code = http_response_code(ctrl_fp);
-		if (code != 200)
-			errx(1, "Error retrieving file: %s", http_errstr(code));
-	}
+	if (proxy && proxy_connect(ctrl_fp, url, proxy) == -1)
+		return (-1);
 
 	log_info("Connected to %s\n", url->host);
 	/* read greeting */
@@ -83,6 +77,70 @@ ftp_connect(struct url *url, struct url *proxy)
 		interpret_command(url);
 
 	return (ctrl_sock);
+}
+
+int
+ftp_get(int fd, off_t offset, struct url *url, struct headers *hdrs)
+{
+	FILE		*data_fp;
+	char		*buf, *dir, *file;
+	off_t		 file_sz;
+	int	 	 data_sock, ret;
+
+	log_info("Using binary mode to transfer files.\n");
+	send_cmd(__func__, ctrl_fp, "TYPE I\r\n");
+	if (ftp_response_code("2") != 0)
+		return (-1);
+
+	if ((dir = dirname(url->path)) == NULL)
+		err(1, "%s: dirname", __func__);
+
+	if ((file = basename(url->path)) == NULL)
+		err(1, "%s: basename", __func__);
+
+	if (strcmp(dir, "/") != 0) {
+		send_cmd(__func__, ctrl_fp, "CWD %s\r\n", dir);
+		if (ftp_response_code("2") != 0)
+			errx(1, "%s: %s No such file or directory",
+			    __func__, dir);
+	}
+
+	file_sz = ftp_size(file);
+	if ((data_sock = ftp_pasv()) == -1)
+		return (-1);
+
+	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
+		err(1, "%s: fdopen", __func__);
+
+	if (offset) {
+		send_cmd(__func__, ctrl_fp, "REST %lld\r\n", offset);
+		if (ftp_response_code("23") != 0) {
+			offset = 0;
+			if (ftruncate(fd, 0) == -1)
+				err(1, "%s: ftruncate", __func__);
+		}
+	}
+
+	send_cmd(__func__, ctrl_fp, "RETR %s\r\n", file);
+	/* Data connection established */
+	if ((buf = ftp_response()) == NULL)
+		return (-1);
+	else if (buf[0] != '1') {
+		ret = -1;
+		warnx("%s", buf);
+		goto exit;
+	} else
+		free(buf);
+
+	retr_file(data_fp, fd, file_sz, offset);
+	/* RETR response after the file transfer completion */
+	ftp_response_code("2");
+	ret = 200;
+
+exit:
+	send_cmd(__func__, ctrl_fp, "QUIT\r\n");
+	ftp_response_code("2");
+	return (ret);
 }
 
 /* 
@@ -148,77 +206,6 @@ exit:
 
 	exit(ret);
 
-}
-
-int
-ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
-{
-	struct stat	 sb;
-	FILE		*data_fp;
-	char		*buf, *dir, *file;
-	off_t		 offset, file_sz;
-	int	 	 data_sock, flags, ret;
-
-	log_info("Using binary mode to transfer files.\n");
-	send_cmd(__func__, ctrl_fp, "TYPE I\r\n");
-	if (ftp_response_code("2") != 0)
-		return (-1);
-
-	if ((dir = dirname(url->path)) == NULL)
-		err(1, "%s: dirname", __func__);
-
-	if ((file = basename(url->path)) == NULL)
-		err(1, "%s: basename", __func__);
-
-	if (strcmp(dir, "/") != 0) {
-		send_cmd(__func__, ctrl_fp, "CWD %s\r\n", dir);
-		if (ftp_response_code("2") != 0)
-			errx(1, "%s: %s No such file or directory",
-			    __func__, dir);
-	}
-
-	file_sz = ftp_size(file);
-	if ((data_sock = ftp_pasv()) == -1)
-		return (-1);
-
-	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
-		err(1, "%s: fdopen", __func__);
-
-	offset = 0;
-	if (resume) {
-		if (stat(out_fn, &sb) == 0) {
-			send_cmd(__func__, ctrl_fp,
-			    "REST %lld\r\n", sb.st_size);
-			if (ftp_response_code("3") == 0)
-				offset = sb.st_size;
-			else
-				resume = 0;
-		} else
-			resume = 0;
-	}
-
-	send_cmd(__func__, ctrl_fp, "RETR %s\r\n", file);
-	/* Data connection established */
-	if ((buf = ftp_response()) == NULL)
-		return (-1);
-	else if (buf[0] != '1') {
-		ret = -1;
-		warnx("%s", buf);
-		goto exit;
-	} else
-		free(buf);
-
-	flags = O_CREAT | O_WRONLY;
-	flags |= (resume) ? O_APPEND : O_TRUNC;
-	retr_file(data_fp, out_fn, flags, file_sz, offset);
-	/* RETR response after the file transfer completion */
-	ftp_response_code("2");
-	ret = 200;
-
-exit:
-	send_cmd(__func__, ctrl_fp, "QUIT\r\n");
-	ftp_response_code("2");
-	return (ret);
 }
 
 off_t
