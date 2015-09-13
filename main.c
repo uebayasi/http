@@ -219,40 +219,27 @@ url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 {
 	struct stat	sb;
 	off_t		offset;
-	int		fd, flags, ret;
+	int		ret;
 
 	offset = 0;
-	flags = O_CREAT | O_WRONLY;
-	if (strcmp(fn, "-") == 0)
-		fd = STDOUT_FILENO;
-	else {
-		if (resume && stat(fn, &sb) == 0) {
-			offset = sb.st_size;
-			flags |= O_APPEND;
-		}
-
-		if ((fd = open(fn, flags, 0666)) == -1)
-			err(1, "%s: open %s", __func__, fn);
-	}
+	if (resume && strcmp(fn, "-") && stat(fn, &sb) == 0)
+		offset = sb.st_size;
 
 	switch (url->proto) {
 	case HTTP:
-		ret = http_get(fd, offset, url, hdrs);
+		ret = http_get(fn, offset, url, hdrs);
 		break;
 #ifndef SMALL
 	case HTTPS:
-		ret = https_get(fd, offset, url, hdrs);
+		ret = https_get(fn, offset, url, hdrs);
 		break;
 	case FTP:
-		ret = ftp_get(fd, offset, url, hdrs);
+		ret = ftp_get(fn, offset, url, hdrs);
 		break;
 #endif
 	default:
 		errx(1, "%s: Invalid protocol", __func__);
 	}
-
-	if (fd != STDOUT_FILENO)
-		close(fd);
 
 	return (ret);
 }

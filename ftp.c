@@ -80,7 +80,7 @@ ftp_connect(struct url *url, struct url *proxy)
 }
 
 int
-ftp_get(int fd, off_t offset, struct url *url, struct headers *hdrs)
+ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
 	FILE		*data_fp;
 	char		*buf, *dir, *file;
@@ -116,8 +116,8 @@ ftp_get(int fd, off_t offset, struct url *url, struct headers *hdrs)
 		send_cmd(__func__, ctrl_fp, "REST %lld\r\n", offset);
 		if (ftp_response_code("23") != 0) {
 			offset = 0;
-			if (ftruncate(fd, 0) == -1)
-				err(1, "%s: ftruncate", __func__);
+			if (truncate(fn, 0) == -1)
+				err(1, "%s: truncate", __func__);
 		}
 	}
 
@@ -132,7 +132,7 @@ ftp_get(int fd, off_t offset, struct url *url, struct headers *hdrs)
 	} else
 		free(buf);
 
-	retr_file(data_fp, fd, file_sz, offset);
+	retr_file(data_fp, fn, file_sz, offset);
 	/* RETR response after the file transfer completion */
 	ftp_response_code("2");
 	ret = 200;

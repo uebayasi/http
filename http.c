@@ -83,7 +83,7 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 }
 
 int
-http_get(int fd, off_t offset, struct url *url, struct headers *hdrs)
+http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
 	char		 range[BUFSIZ];
 	const char	*basic_auth;
@@ -110,10 +110,10 @@ http_get(int fd, off_t offset, struct url *url, struct headers *hdrs)
 
 	/* Expected a partial content but got full content */
 	if (offset && (res == 200))
-		if (ftruncate(fd, 0) == -1)
-			err(1, "%s: ftruncate", __func__);
+		if (truncate(fn, 0) == -1)
+			err(1, "%s: truncate", __func__);
 
-	retr_file(http_fp, fd, hdrs->c_len + offset, offset);
+	retr_file(http_fp, fn, hdrs->c_len + offset, offset);
 err:
 	fclose(http_fp);
 	return (res);

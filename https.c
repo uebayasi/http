@@ -65,7 +65,7 @@ int	 https_vprintf(struct tls *, const char *, ...)
     __attribute__((__nonnull__ (2)));
 char	*https_parseln(size_t *);
 int	 https_response(struct headers *);
-void	 https_retr_file(int, off_t, off_t);
+void	 https_retr_file(const char *, off_t, off_t);
 
 struct tls_config	*https_init(void);
 
@@ -194,7 +194,7 @@ https_connect(struct url *url, struct url *proxy)
 }
 
 int
-https_get(int fd, off_t offset, struct url *url, struct headers *hdrs)
+https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
 	char			 range[BUFSIZ];
 	const char		*basic_auth;
@@ -222,10 +222,10 @@ https_get(int fd, off_t offset, struct url *url, struct headers *hdrs)
 
 	/* Expected a partial content but got full content */
 	if (offset && (res == 200))
-		if (ftruncate(fd, 0) == -1)
-			err(1, "%s: ftruncate", __func__);
+		if (truncate(fn, 0) == -1)
+			err(1, "%s: truncate", __func__);
 
-	https_retr_file(fd, hdrs->c_len + offset, offset);
+	https_retr_file(fn, hdrs->c_len + offset, offset);
 err:
 	while ((ret = tls_close(ctx)) != 0)
 		if (ret != TLS_READ_AGAIN && ret != TLS_WRITE_AGAIN)
@@ -236,19 +236,26 @@ err:
 }
 
 void
-https_retr_file(int fd, off_t file_sz, off_t offset)
+https_retr_file(const char *fn, off_t file_sz, off_t offset)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
 	char		*cp;
 	static char	*buf;
-	int		 ret;
+	int		 fd, flags, ret;
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
 		if (buf == NULL)
 			err(1, "%s: malloc", __func__);
 	}
+
+	flags = O_CREAT | O_WRONLY;
+	if (offset)
+		flags |= O_APPEND;
+
+	if ((fd = open(fn, flags, 0666)) == -1)
+		err(1, "%s: open %s", __func__, fn);
 
 	start_progress_meter(file_sz, &offset);
 	while (1) {
@@ -271,6 +278,9 @@ https_retr_file(int fd, off_t file_sz, off_t offset)
 				break;
 		}
 	}
+
+	if (strcmp(fn, "-"))
+		close(fd);
 
 	stop_progress_meter();
 }

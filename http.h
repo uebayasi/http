@@ -37,7 +37,7 @@ struct url {
 /* http.c */
 int	 http_connect(struct url *, struct url *);
 int	 proxy_connect(FILE *, struct url *, struct url *);
-int	 http_get(int, off_t, struct url *, struct headers *);
+int	 http_get(const char *, off_t, struct url *, struct headers *);
 
 /* util.c */
 int		 tcp_connect(const char *, const char *);
@@ -49,7 +49,7 @@ void		 send_cmd(const char *, FILE *, const char *, ...)
     __attribute__((__format__ (printf, 3, 4)))
     __attribute__((__nonnull__ (3)));
 void		 log_request(struct url *, struct url *);
-void	 	 retr_file(FILE *, int, off_t, off_t);
+void	 	 retr_file(FILE *, const char *, off_t, off_t);
 int		 response_code(char *);
 char		*url_encode(const char *);
 void		 url_parse(const char *, struct url *);
@@ -59,10 +59,10 @@ const char	*base64_encode(const char *, const char *);
 #ifndef SMALL
 /* https.c */
 int	https_connect(struct url *, struct url *);
-int	https_get(int, off_t, struct url *, struct headers *);
+int	https_get(const char *, off_t, struct url *, struct headers *);
 
 /* ftp.c */
 int	ftp_connect(struct url *, struct url *);
-int	ftp_get(int, off_t, struct url *, struct headers *);
+int	ftp_get(const char *, off_t, struct url *, struct headers *);
 #endif
 
