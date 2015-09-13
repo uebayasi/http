@@ -15,7 +15,6 @@
  */
 
 #include <sys/stat.h>
-#include <sys/tame.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -97,8 +96,7 @@ main(int argc, char *argv[])
 	paths[2] = output;
 #endif
 
-	if (tame(TAME_DNS | TAME_INET | TAME_STDIO | TAME_IOCTL | 
-	    TAME_CPATH | TAME_WPATH | TAME_ABORT, paths) != 0)
+	if (tame("dns inet stdio ioctl cpath wpath", paths) != 0)
 		err(1, "tame");
 
 	if ((proxy_str = getenv("http_proxy")) != NULL && *proxy_str == '\0')
