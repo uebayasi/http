@@ -40,7 +40,6 @@ int	 ftp_response_code(const char *);
 off_t	 ftp_size(const char *);
 char	*ftp_response(void);
 int	 ftp_pasv(void);
-void	 interpret_command(struct url *);
 
 int
 ftp_connect(struct url *url, struct url *proxy)
@@ -53,7 +52,6 @@ ftp_connect(struct url *url, struct url *proxy)
 
 	host = proxy ? proxy->host : url->host;
 	port = proxy ? proxy->port : url->port;
-
 	if ((ctrl_sock = tcp_connect(host, port)) == -1)
 		return (-1);
 
@@ -72,9 +70,6 @@ ftp_connect(struct url *url, struct url *proxy)
 		warnx("Login %s failed", url->user);
 		return (-1);
 	}
-
-	if (url->path[strlen(url->path) - 1] == '/')
-		interpret_command(url);
 
 	return (ctrl_sock);
 }
@@ -141,71 +136,6 @@ exit:
 	send_cmd(__func__, ctrl_fp, "QUIT\r\n");
 	ftp_response_code("2");
 	return (ret);
-}
-
-/* 
- * Just enough command interpretation for pkg_add(1) to function.
- */
-void
-interpret_command(struct url *url)
-{
-	FILE		*data_fp;
-	char		*buf, *line;
-	size_t		 len;
-	int		 data_sock, ret;
-
-	if ((line = fparseln(stdin, &len, NULL, "\0\0\0", 0)) == NULL)
-		exit(-1);
-
-	if (strcasecmp(line, "nlist"))
-		exit(-1);
-
-	free(line);
-
-	send_cmd(__func__, ctrl_fp, "TYPE I\r\n");
-	if (ftp_response_code("2") != 0)
-		exit(-1);
-
-	send_cmd(__func__, ctrl_fp, "CWD %s\r\n", url->path);
-	if (ftp_response_code("2") != 0)
-		errx(1, "%s: %s No such file or directory",
-		    __func__, url->path);
-
-	send_cmd(__func__, ctrl_fp, "TYPE A\r\n");
-	if (ftp_response_code("2") != 0)
-		exit(-1);
-
-	if ((data_sock = ftp_pasv()) == -1)
-		exit(-1);
-
-	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
-		err(1, "%s: fdopen", __func__);
-
-	send_cmd(__func__, ctrl_fp, "NLST\r\n");
-	/* Data connection established */
-	if ((buf = ftp_response()) == NULL)
-		errx(1, "%s: Error retrieving file", __func__);
-	else if (buf[0] != '1') {
-		ret = -1;
-		warnx("%s", buf);
-		goto exit;
-	} else
-		free(buf);
-
-	while ((line = fparseln(data_fp, &len, NULL, "\0\0\0", 0)) != NULL) {
-		printf("%s\n", line);
-		free(line);
-	}
-
-	/* NLST response after the transfer completion */
-	ftp_response_code("2");
-	ret = 0;
-exit:
-	send_cmd(__func__, ctrl_fp, "QUIT\r\n");
-	ftp_response_code("2");
-
-	exit(ret);
-
 }
 
 off_t
