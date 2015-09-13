@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 			errx(1, "Invalid proxy protocol: %s", proxy_str);
 
 		if (proxy.port[0] == '\0')
-			(void)strlcpy(proxy.port, "80", sizeof(proxy.port));
+			(void)strlcpy(proxy.port, "www", sizeof(proxy.port));
 	}
 
 	for (i = 0; i < argc; i++) {
