@@ -230,7 +230,7 @@ https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	https_retr_file(fn, hdrs->c_len + offset, offset);
 err:
 	while ((ret = tls_close(ctx)) != 0)
-		if (ret != TLS_READ_AGAIN && ret != TLS_WRITE_AGAIN)
+		if (ret != TLS_WANT_POLLIN && ret != TLS_WANT_POLLOUT)
 			errx(1, "%s: tls_close: %s", __func__, tls_error(ctx));
 
 	tls_free(ctx);
@@ -240,11 +240,11 @@ err:
 void
 https_retr_file(const char *fn, off_t file_sz, off_t offset)
 {
-	size_t		 r, wlen;
-	ssize_t		 i;
+	size_t		 wlen;
+	ssize_t		 i, r;
 	char		*cp;
 	static char	*buf;
-	int		 fd, flags, ret;
+	int		 fd, flags;
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
@@ -261,10 +261,10 @@ https_retr_file(const char *fn, off_t file_sz, off_t offset)
 
 	start_progress_meter(file_sz, &offset);
 	while (1) {
-		ret = tls_read(ctx, buf, TMPBUF_LEN, &r);
-		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
+		r = tls_read(ctx, buf, TMPBUF_LEN);
+		if (r == TLS_WANT_POLLIN || r == TLS_WANT_POLLOUT)
 			continue;
-		else if (ret != 0) {
+		else if (r < 0) {
 			errx(1, "%s: tls_read: %s", __func__, tls_error(ctx));
 		}
 
@@ -315,7 +315,7 @@ https_vprintf(struct tls *tls, const char *fmt, ...)
 {
 	va_list	 ap;
 	char	*string;
-	size_t	 nw;
+	ssize_t	 nw;
 	int	 ret;
 
 	va_start(ap, fmt);
@@ -326,10 +326,10 @@ https_vprintf(struct tls *tls, const char *fmt, ...)
 
 	va_end(ap);
 again:
-	ret = tls_write(tls, string, ret, &nw);
-	if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
+	nw = tls_write(tls, string, ret);
+	if (nw == TLS_WANT_POLLIN || nw == TLS_WANT_POLLOUT)
 		goto again;
-	else if (ret != 0)
+	else if (nw < 0)
 		errx(1, "%s: tls_write: %s", __func__, tls_error(tls));
 
 	free(string);
@@ -339,9 +339,9 @@ again:
 char *
 https_parseln(size_t *lenp)
 {
-	size_t	 i, len, nr;
+	size_t	 i, len;
 	char	*buf, *q, c;
-	int	 ret;
+	ssize_t	 nr;
 
 	len = 128;
 	if ((buf = calloc(1, len)) == NULL)
@@ -356,12 +356,12 @@ https_parseln(size_t *lenp)
 			len *= 2;
 		}
 again:
-		ret = tls_read(ctx, &c, 1, &nr);
-		if (ret == TLS_READ_AGAIN || ret == TLS_WRITE_AGAIN)
+		nr = tls_read(ctx, &c, 1);
+		if (nr == TLS_WANT_POLLIN || nr == TLS_WANT_POLLOUT)
 			goto again;
 
-		if (ret != 0)
-			errx(1, "TLS read error: %u", ret);
+		if (nr < 0)
+			errx(1, "TLS read error: %ld", nr);
 
 		buf[i] = c;
 		if (c == '\n')
