@@ -113,7 +113,7 @@ main(int argc, char *argv[])
 	}
 
 	for (i = 0; i < argc; i++) {
-		fn = (output) ? output : basename(argv[i]);
+		fn = output ? output : basename(argv[i]);
 		if (fn == NULL)
 			err(1, "basename");
 retry:
@@ -127,10 +127,10 @@ retry:
 		if (strcmp(url.path, "/") == 0 || strlen(url.path) == 0)
 			errx(1, "No filename after host: %s", url.host);
 
-		if (url_connect(&url, (proxy_str) ? &proxy : NULL) == -1)
+		if (url_connect(&url, proxy_str ? &proxy : NULL) == -1)
 			return (-1);
 
-		log_request(&url, (proxy_str) ? &proxy : NULL);
+		log_request(&url, proxy_str ? &proxy : NULL);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
 		code = url_get(&url, fn, resume, &res_hdrs);
 		switch (code) {

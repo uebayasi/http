@@ -210,12 +210,12 @@ https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	    "%s"
 	    "%s%s"
 	    "\r\n",
-	    (url->path[0]) ? url->path : "/",
+	    url->path[0] ? url->path : "/",
 	    url->host,
 	    ua,
-	    (offset) ? range : "",
-	    (basic_auth) ? "Authorization: Basic " : "",
-	    (basic_auth) ? basic_auth : "");
+	    offset ? range : "",
+	    basic_auth ? "Authorization: Basic " : "",
+	    basic_auth ? basic_auth : "");
 	res = https_response(hdrs);
 	if (res != 200 && res != 206)
 		goto err;

@@ -419,13 +419,13 @@ log_request(struct url *url, struct url *proxy)
 
 	switch (url->proto) {
 	case HTTP:
-		custom_port = (strcmp(url->port, "www")) ? 1 : 0;
+		custom_port = strcmp(url->port, "www") ? 1 : 0;
 		break;
 	case HTTPS:
-		custom_port = (strcmp(url->port, "https")) ? 1 : 0;
+		custom_port = strcmp(url->port, "https") ? 1 : 0;
 		break;
 	case FTP:
-		custom_port = (strcmp(url->port, "ftp")) ? 1 : 0;
+		custom_port = strcmp(url->port, "ftp") ? 1 : 0;
 		break;
 	}
 
@@ -433,31 +433,31 @@ log_request(struct url *url, struct url *proxy)
 		log_info("Requesting %s://%s%s%s%s%s%s%s"
 		    " (via %s://%s%s%s%s%s%s)\n",
 		    proto_str(url->proto),
-		    (url->user[0]) ? url->user : "",
-		    (url->pass[0]) ? ":*****" : "",
+		    url->user[0] ? url->user : "",
+		    url->pass[0] ? ":*****" : "",
 		    (url->user[0] || url->pass[0]) ? "@" : "",
 		    url->host,
-		    (custom_port) ? ":" : "",
-		    (custom_port) ? url->port : "",
+		    custom_port ? ":" : "",
+		    custom_port ? url->port : "",
 		    url->path,
 
 		    /* via proxy part */
 		    (proxy->proto == HTTP) ? "http" : "https",
-		    (proxy->user[0]) ? proxy->user : "",
-		    (proxy->pass[0]) ? ":*****" : "",
+		    proxy->user[0] ? proxy->user : "",
+		    proxy->pass[0] ? ":*****" : "",
 		    (proxy->user[0] || proxy->pass[0]) ? "@" : "",
 		    proxy->host,
-		    (proxy->port[0]) ? ":" : "",
-		    (proxy->port[0]) ? proxy->port : "");
+		    proxy->port[0] ? ":" : "",
+		    proxy->port[0] ? proxy->port : "");
 	else
 		log_info("Requesting %s://%s%s%s%s%s%s%s\n",
 		    proto_str(url->proto),
-		    (url->user[0]) ? url->user : "",
-		    (url->pass[0]) ? ":*****" : "",
+		    url->user[0] ? url->user : "",
+		    url->pass[0] ? ":*****" : "",
 		    (url->user[0] || url->pass[0]) ? "@" : "",
 		    url->host,
-		    (custom_port) ? ":" : "",
-		    (custom_port) ? url->port : "",
+		    custom_port ? ":" : "",
+		    custom_port ? url->port : "",
 		    url->path);
 }
 
