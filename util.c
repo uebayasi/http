@@ -419,13 +419,13 @@ log_request(struct url *url, struct url *proxy)
 
 	switch (url->proto) {
 	case HTTP:
-		custom_port = (strcmp(url->port, "80")) ? 1 : 0;
+		custom_port = (strcmp(url->port, "www")) ? 1 : 0;
 		break;
 	case HTTPS:
-		custom_port = (strcmp(url->port, "443")) ? 1 : 0;
+		custom_port = (strcmp(url->port, "https")) ? 1 : 0;
 		break;
 	case FTP:
-		custom_port = (strcmp(url->port, "21")) ? 1 : 0;
+		custom_port = (strcmp(url->port, "ftp")) ? 1 : 0;
 		break;
 	}
 
