@@ -14,7 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/stat.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -34,41 +33,33 @@
 
 #include "http.h"
 
-static FILE	*ctrl_fin;
-static int	 ctrl_sock = -1;
+static FILE	*ctrl_fp;
 
 int	 ftp_auth(struct url *);
 int	 ftp_response_code(const char *);
 off_t	 ftp_size(const char *);
-char	*ftp_response(void);
+char	*ftp_parseln(void);
 int	 ftp_pasv(void);
-void	 interpret_command(struct url *);
 
 int
 ftp_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
-	int		 code;
+	int		 ctrl_sock;
 
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "21", sizeof(url->port));
+		(void)strlcpy(url->port, "ftp", sizeof(url->port));
 
-	host = (proxy) ? proxy->host : url->host;
-	port = (proxy) ? proxy->port : url->port;
-
+	host = proxy ? proxy->host : url->host;
+	port = proxy ? proxy->port : url->port;
 	if ((ctrl_sock = tcp_connect(host, port)) == -1)
 		return (-1);
 
-	if ((ctrl_fin = fdopen(ctrl_sock, "r+")) == NULL)
+	if ((ctrl_fp = fdopen(ctrl_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	if (proxy) {
-		fprintf(ctrl_fin, "CONNECT %s:%s\r\n", url->host, url->port);
-		fflush(ctrl_fin);
-		code = http_response_code(ctrl_fin);
-		if (code != 200)
-			errx(1, "Error retrieving file: %s", http_errstr(code));
-	}
+	if (proxy && proxy_connect(ctrl_fp, url, proxy) == -1)
+		return (-1);
 
 	log_info("Connected to %s\n", url->host);
 	/* read greeting */
@@ -80,94 +71,19 @@ ftp_connect(struct url *url, struct url *proxy)
 		return (-1);
 	}
 
-	if (url->path[strlen(url->path) - 1] == '/')
-		interpret_command(url);
-
 	return (ctrl_sock);
 }
 
-/* 
- * Just enough command interpretation for pkg_add(1) to function.
- */
-void
-interpret_command(struct url *url)
-{
-	FILE		*data_fin;
-	char		*buf, *line;
-	size_t		 len;
-	int		 data_sock, ret;
-
-	if ((line = fparseln(stdin, &len, NULL, "\0\0\0", 0)) == NULL)
-		exit(-1);
-
-	if (strcasecmp(line, "nlist"))
-		exit(-1);
-
-	free(line);
-
-	fprintf(ctrl_fin, "TYPE I\r\n");
-	fflush(ctrl_fin);
-	if (ftp_response_code("2") != 0)
-		exit(-1);
-
-	fprintf(ctrl_fin, "CWD %s\r\n", url->path);
-	fflush(ctrl_fin);
-	if (ftp_response_code("2") != 0)
-		errx(1, "%s: %s No such file or directory",
-		    __func__, url->path);
-
-	fprintf(ctrl_fin, "TYPE A\r\n");
-	fflush(ctrl_fin);
-	if (ftp_response_code("2") != 0)
-		exit(-1);
-
-	if ((data_sock = ftp_pasv()) == -1)
-		exit(-1);
-
-	if ((data_fin = fdopen(data_sock, "r+")) == NULL)
-		err(1, "%s: fdopen", __func__);
-
-	fprintf(ctrl_fin, "NLST\r\n");
-	fflush(ctrl_fin);
-	/* Data connection established */
-	if ((buf = ftp_response()) == NULL)
-		errx(1, "%s: Error retrieving file", __func__);
-	else if (buf[0] != '1') {
-		ret = -1;
-		warnx("%s", buf);
-		goto exit;
-	} else
-		free(buf);
-
-	while ((line = fparseln(data_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
-		printf("%s\n", line);
-		free(line);
-	}
-
-	/* NLST response after the transfer completion */
-	ftp_response_code("2");
-	ret = 0;
-exit:
-	fprintf(ctrl_fin, "QUIT\r\n");
-	fflush(ctrl_fin);
-	ftp_response_code("2");
-
-	exit(ret);
-
-}
-
 int
-ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
+ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
-	struct stat	 sb;
-	FILE		*data_fin;
+	FILE		*data_fp;
 	char		*buf, *dir, *file;
-	off_t		 offset, file_sz;
-	int	 	 data_sock, flags, ret;
+	off_t		 file_sz;
+	int	 	 data_sock, ret;
 
 	log_info("Using binary mode to transfer files.\n");
-	fprintf(ctrl_fin, "TYPE I\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fp, "TYPE I\r\n");
 	if (ftp_response_code("2") != 0)
 		return (-1);
 
@@ -178,8 +94,7 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 		err(1, "%s: basename", __func__);
 
 	if (strcmp(dir, "/") != 0) {
-		fprintf(ctrl_fin, "CWD %s\r\n", dir);
-		fflush(ctrl_fin);
+		send_cmd(__func__, ctrl_fp, "CWD %s\r\n", dir);
 		if (ftp_response_code("2") != 0)
 			errx(1, "%s: %s No such file or directory",
 			    __func__, dir);
@@ -189,27 +104,21 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	if ((data_sock = ftp_pasv()) == -1)
 		return (-1);
 
-	if ((data_fin = fdopen(data_sock, "r+")) == NULL)
+	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	offset = 0;
-	if (resume) {
-		if (stat(out_fn, &sb) == 0) {
-			fprintf(ctrl_fin, "REST %lld\r\n", sb.st_size);
-			fflush(ctrl_fin);
-			if (ftp_response_code("3") == 0)
-				offset = sb.st_size;
-			else
-				resume = 0;
-		} else
-			resume = 0;
+	if (offset) {
+		send_cmd(__func__, ctrl_fp, "REST %lld\r\n", offset);
+		if (ftp_response_code("23") != 0) {
+			offset = 0;
+			if (truncate(fn, 0) == -1)
+				err(1, "%s: truncate", __func__);
+		}
 	}
 
-	fprintf(ctrl_fin, "RETR %s\r\n", file);
-	fflush(ctrl_fin);
-
+	send_cmd(__func__, ctrl_fp, "RETR %s\r\n", file);
 	/* Data connection established */
-	if ((buf = ftp_response()) == NULL)
+	if ((buf = ftp_parseln()) == NULL)
 		return (-1);
 	else if (buf[0] != '1') {
 		ret = -1;
@@ -218,16 +127,13 @@ ftp_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	} else
 		free(buf);
 
-	flags = O_CREAT | O_WRONLY;
-	flags |= (resume) ? O_APPEND : O_TRUNC;
-	retr_file(data_fin, out_fn, flags, file_sz, offset);
+	retr_file(data_fp, fn, file_sz, offset);
 	/* RETR response after the file transfer completion */
 	ftp_response_code("2");
 	ret = 200;
 
 exit:
-	fprintf(ctrl_fin, "QUIT\r\n");
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fp, "QUIT\r\n");
 	ftp_response_code("2");
 	return (ret);
 }
@@ -243,9 +149,8 @@ ftp_size(const char *fn)
 	old_verbose = verbose;
 	verbose = 0;
 	file_sz = 0;
-	fprintf(ctrl_fin, "SIZE %s\r\n", fn);
-	fflush(ctrl_fin);
-	if ((buf = ftp_response()) == NULL)
+	send_cmd(__func__, ctrl_fp, "SIZE %s\r\n", fn);
+	if ((buf = ftp_parseln()) == NULL)
 		goto exit;
 
 	if (buf[0] == '2') {
@@ -275,48 +180,40 @@ ftp_pasv(void)
 {
 	struct sockaddr_in	 data_addr;
 	char			*buf, *s, *e;
-	size_t			 len;
 	uint			 addr[4], port[2];
 	int			 sock, ret;
 
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
-	fprintf(ctrl_fin, "PASV\r\n");
-	fflush(ctrl_fin);
-	while ((buf = fparseln(ctrl_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
-		if (len != 3 && buf[3] != ' ') { /* Continue till last line */
-			free(buf);
-			continue;
-		}
+	send_cmd(__func__, ctrl_fp, "PASV\r\n");
+	if ((buf = ftp_parseln()) == NULL)
+		return (-1);
 
-		if (buf[0] != '2')
-			errx(1, "Can't continue without PASV support");
+	if (buf[0] != '2')
+		errx(1, "Can't continue without PASV support");
 
-		if ((s = strchr(buf, '(')) == NULL) {
-			warnx("Malformed PASV reply");
-			return (-1);
-		}
-
-		if ((e = strchr(buf, ')')) == NULL) {
-			warnx("Malformed PASV reply");
-			return (-1);
-		}
-
-		s++;
-		*e = '\0';
-		ret = sscanf(s, "%u,%u,%u,%u,%u,%u",
-		    &addr[0], &addr[1], &addr[2], &addr[3],
-		    &port[0], &port[1]);
-
-		if (ret != 6) {
-			warnx("Passive mode address scan failure");
-			return (-1);
-		}
-
-		free(buf);
-		break;
+	if ((s = strchr(buf, '(')) == NULL) {
+		warnx("Malformed PASV reply");
+		return (-1);
 	}
 
+	if ((e = strchr(buf, ')')) == NULL) {
+		warnx("Malformed PASV reply");
+		return (-1);
+	}
+
+	s++;
+	*e = '\0';
+	ret = sscanf(s, "%u,%u,%u,%u,%u,%u",
+	    &addr[0], &addr[1], &addr[2], &addr[3],
+	    &port[0], &port[1]);
+
+	if (ret != 6) {
+		warnx("Passive mode address scan failure");
+		return (-1);
+	}
+
+	free(buf);
 	memset(&data_addr, 0, sizeof(data_addr));
 	data_addr.sin_family = AF_INET;
 	data_addr.sin_len = sizeof(struct sockaddr_in);
@@ -339,17 +236,15 @@ ftp_auth(struct url *url)
 	if (url->user[0] == '\0')
 		(void)strlcpy(url->user, "anonymous", sizeof(url->user));
 
-	fprintf(ctrl_fin, "USER %s\r\n", url->user);
-	fflush(ctrl_fin);
+	send_cmd(__func__, ctrl_fp, "USER %s\r\n", url->user);
 	if (ftp_response_code("23") != 0)
 		return (-1);
 
 	if (url->pass[0])
-		fprintf(ctrl_fin, "PASS %s\r\n", url->pass);
+		send_cmd(__func__, ctrl_fp, "PASS %s\r\n", url->pass);
 	else
-		fprintf(ctrl_fin, "PASS\r\n");
+		send_cmd(__func__, ctrl_fp, "PASS\r\n");
 
-	fflush(ctrl_fin);
 	if (ftp_response_code("2") != 0)
 		return (-1);
 
@@ -363,7 +258,7 @@ ftp_response_code(const char *res_code)
 	int	 ret;
 
 	ret = -1;
-	if ((buf = ftp_response()) == NULL)
+	if ((buf = ftp_parseln()) == NULL)
 		goto exit;
 
 	if (strchr(res_code, buf[0]) == NULL)
@@ -376,13 +271,13 @@ exit:
 }
 
 char *
-ftp_response(void)
+ftp_parseln(void)
 {
 	char		*buf;
 	size_t		 len;
 
 	buf = NULL;
-	while ((buf = fparseln(ctrl_fin, &len, NULL, "\0\0\0", 0)) != NULL) {
+	while ((buf = fparseln(ctrl_fp, &len, NULL, "\0\0\0", 0)) != NULL) {
 		if (buf[len - 1] == '\r')
 			buf[--len] = '\0';
 

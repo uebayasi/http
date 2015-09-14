@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/stat.h>
 #include <sys/tame.h>
 
 #include <ctype.h>
@@ -108,11 +109,11 @@ main(int argc, char *argv[])
 			errx(1, "Invalid proxy protocol: %s", proxy_str);
 
 		if (proxy.port[0] == '\0')
-			(void)strlcpy(proxy.port, "80", sizeof(proxy.port));
+			(void)strlcpy(proxy.port, "www", sizeof(proxy.port));
 	}
 
 	for (i = 0; i < argc; i++) {
-		fn = (output) ? output : basename(argv[i]);
+		fn = output ? output : basename(argv[i]);
 		if (fn == NULL)
 			err(1, "basename");
 retry:
@@ -126,10 +127,10 @@ retry:
 		if (strcmp(url.path, "/") == 0 || strlen(url.path) == 0)
 			errx(1, "No filename after host: %s", url.host);
 
-		if (url_connect(&url, (proxy_str) ? &proxy : NULL) == -1)
+		if (url_connect(&url, proxy_str ? &proxy : NULL) == -1)
 			return (-1);
 
-		log_request(&url, (proxy_str) ? &proxy : NULL);
+		log_request(&url, proxy_str ? &proxy : NULL);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
 		code = url_get(&url, fn, resume, &res_hdrs);
 		switch (code) {
@@ -216,18 +217,31 @@ url_connect(struct url *url, struct url *proxy)
 int
 url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 {
+	struct stat	sb;
+	off_t		offset;
+	int		ret;
+
+	offset = 0;
+	if (resume && strcmp(fn, "-") && stat(fn, &sb) == 0)
+		offset = sb.st_size;
+
 	switch (url->proto) {
 	case HTTP:
-		return http_get(url, fn, resume, hdrs);
+		ret = http_get(fn, offset, url, hdrs);
+		break;
 #ifndef SMALL
 	case HTTPS:
-		return https_get(url, fn, resume, hdrs);
+		ret = https_get(fn, offset, url, hdrs);
+		break;
 	case FTP:
-		return ftp_get(url, fn, resume, hdrs);
+		ret = ftp_get(fn, offset, url, hdrs);
+		break;
 #endif
 	default:
 		errx(1, "%s: Invalid protocol", __func__);
 	}
+
+	return (ret);
 }
 
 void

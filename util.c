@@ -290,18 +290,13 @@ header_insert(struct headers *hdrs, const char *buf)
 }
 
 void
-retr_file(FILE *fin, const char *out_fn, int flags, off_t file_sz, off_t offset)
+retr_file(FILE *fp, const char *fn, off_t file_sz, off_t offset)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
 	char		*cp;
 	static char	*buf;
-	int		 out;
-
-	if (strcmp(out_fn, "-") == 0)
-		out = STDOUT_FILENO;
-	else if ((out = open(out_fn, flags, 0666)) == -1)
-		err(1, "%s: open %s", __func__, out_fn);
+	int		 fd, flags;
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
@@ -309,26 +304,33 @@ retr_file(FILE *fin, const char *out_fn, int flags, off_t file_sz, off_t offset)
 			err(1, "%s: malloc", __func__);
 	}
 
+	flags = O_CREAT | O_WRONLY;
+	if (offset)
+		flags |= O_APPEND;
+
+	if ((fd = open(fn, flags, 0666)) == -1)
+		err(1, "%s: open %s", __func__, fn);
+
 	start_progress_meter(file_sz, &offset);
-	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fin)) > 0) {
-		if (ferror(fin))
+	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fp)) > 0) {
+		if (ferror(fp))
 			err(1, "%s: fread", __func__);
 		offset += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
-			if ((i = write(out, cp, wlen)) == -1) {
+			if ((i = write(fd, cp, wlen)) == -1) {
 				if (errno != EINTR)
 					err(1, "%s: write", __func__);
 			} else if (i == 0)
 				break;
 		}
 	}
-
-	stop_progress_meter();
-	if (ferror(fin))
+	if (ferror(fp))
 		err(1, "%s: fread", __func__);
 
-	if (out != STDOUT_FILENO)
-		close(out);
+	if (strcmp(fn, "-"))
+		close(fd);
+
+	stop_progress_meter();
 }
 
 const char *
@@ -337,6 +339,9 @@ base64_encode(const char *user, const char *pass)
 	static char	 basic_auth[BUFSIZ];
 	char		*creds, b64_creds[BUFSIZ];
 	int		 ret;
+
+	if (user == NULL || pass == NULL)
+		return (NULL);
 
 	if ((ret = asprintf(&creds, "%s:%s", user, pass)) == -1)
 		errx(1, "%s: asprintf failed", __func__);
@@ -351,6 +356,19 @@ base64_encode(const char *user, const char *pass)
 		errx(1, "%s: basic_auth overflow", __func__);
 
 	return (basic_auth);
+}
+
+void
+send_cmd(const char *where, FILE *fp, const char *fmt, ...)
+{
+	va_list		ap;
+
+	va_start(ap, fmt);
+	if (vfprintf(fp, fmt, ap) == -1)
+		errx(1, "%s: vfprintf failed", where);
+	va_end(ap);
+	if (fflush(fp) != 0)
+		err(1, "%s: fflush", where);
 }
 
 int
@@ -402,13 +420,13 @@ log_request(struct url *url, struct url *proxy)
 
 	switch (url->proto) {
 	case HTTP:
-		custom_port = (strcmp(url->port, "80")) ? 1 : 0;
+		custom_port = strcmp(url->port, "www") ? 1 : 0;
 		break;
 	case HTTPS:
-		custom_port = (strcmp(url->port, "443")) ? 1 : 0;
+		custom_port = strcmp(url->port, "https") ? 1 : 0;
 		break;
 	case FTP:
-		custom_port = (strcmp(url->port, "21")) ? 1 : 0;
+		custom_port = strcmp(url->port, "ftp") ? 1 : 0;
 		break;
 	}
 
@@ -416,31 +434,31 @@ log_request(struct url *url, struct url *proxy)
 		log_info("Requesting %s://%s%s%s%s%s%s%s"
 		    " (via %s://%s%s%s%s%s%s)\n",
 		    proto_str(url->proto),
-		    (url->user[0]) ? url->user : "",
-		    (url->pass[0]) ? ":*****" : "",
+		    url->user[0] ? url->user : "",
+		    url->pass[0] ? ":*****" : "",
 		    (url->user[0] || url->pass[0]) ? "@" : "",
 		    url->host,
-		    (custom_port) ? ":" : "",
-		    (custom_port) ? url->port : "",
+		    custom_port ? ":" : "",
+		    custom_port ? url->port : "",
 		    url->path,
 
 		    /* via proxy part */
 		    (proxy->proto == HTTP) ? "http" : "https",
-		    (proxy->user[0]) ? proxy->user : "",
-		    (proxy->pass[0]) ? ":*****" : "",
+		    proxy->user[0] ? proxy->user : "",
+		    proxy->pass[0] ? ":*****" : "",
 		    (proxy->user[0] || proxy->pass[0]) ? "@" : "",
 		    proxy->host,
-		    (proxy->port[0]) ? ":" : "",
-		    (proxy->port[0]) ? proxy->port : "");
+		    proxy->port[0] ? ":" : "",
+		    proxy->port[0] ? proxy->port : "");
 	else
 		log_info("Requesting %s://%s%s%s%s%s%s%s\n",
 		    proto_str(url->proto),
-		    (url->user[0]) ? url->user : "",
-		    (url->pass[0]) ? ":*****" : "",
+		    url->user[0] ? url->user : "",
+		    url->pass[0] ? ":*****" : "",
 		    (url->user[0] || url->pass[0]) ? "@" : "",
 		    url->host,
-		    (custom_port) ? ":" : "",
-		    (custom_port) ? url->port : "",
+		    custom_port ? ":" : "",
+		    custom_port ? url->port : "",
 		    url->path);
 }
 

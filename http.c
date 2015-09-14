@@ -14,8 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/stat.h>
-
 #include <err.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -29,59 +27,43 @@
 #include "http.h"
 
 void	 http_init(void);
-int	 http_parse_headers(FILE *, struct headers *);
-char	*http_response(FILE *, size_t *);
-int	 proxy_connect(int, struct url *, struct url *);
+char	*http_parseln(FILE *, size_t *);
+int	 http_response(FILE *, struct headers *);
 
 extern const char	*ua;
-static int		 s = -1;
-
-void
-http_init(void)
-{
-}
+static FILE		*http_fp;
 
 int
 http_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
-	static int	 init = 0;
-
-	/* One time initialization */
-	if (init == 0) {
-		http_init();
-		init = 1;
-	}
+	int		 s;
 
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "80", sizeof(url->port));
+		(void)strlcpy(url->port, "www", sizeof(url->port));
 
-	host = (proxy) ? proxy->host : url->host;
-	port = (proxy) ? proxy->port : url->port;
-
+	host = proxy ? proxy->host : url->host;
+	port = proxy ? proxy->port : url->port;
 	if ((s = tcp_connect(host, port)) == -1)
 		return (-1);
 
-	if (proxy && proxy_connect(s, url, proxy) == -1)
+	if ((http_fp = fdopen(s, "r+")) == NULL)
+		err(1, "%s: fdopen", __func__);
+
+	if (proxy && proxy_connect(http_fp, url, proxy) == -1)
 		return (-1);
 
 	return (s);
 }
 
 int
-proxy_connect(int sock, struct url *url, struct url *proxy)
+proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 {
-	FILE		*fp;
-	const char	*proxy_auth = NULL;
+	const char	*proxy_auth;
 	int		 code;
 
-	if ((fp = fdopen(sock, "r+")) == NULL)
-		err(1, "%s: fdopen", __func__);
-
-	if (proxy->user[0] || proxy->pass[0])
-		proxy_auth = base64_encode(proxy->user, proxy->pass);
-
-	fprintf(fp,
+	proxy_auth = base64_encode(proxy->user, proxy->pass);
+	send_cmd(__func__, fp,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -91,11 +73,9 @@ proxy_connect(int sock, struct url *url, struct url *proxy)
 	    url->port,
 	    url->host,
 	    ua,
-	    (proxy_auth) ? "Proxy-Authorization: Basic " : "",
-	    (proxy_auth) ? proxy_auth : "");
-
-	fflush(fp);
-	code = http_response_code(fp);
+	    proxy_auth ? "Proxy-Authorization: Basic " : "",
+	    proxy_auth ? proxy_auth : "");
+	code = http_response(fp, NULL);
 	if (code != 200)
 		errx(1, "Error retrieving file: %s", http_errstr(code));
 
@@ -103,125 +83,82 @@ proxy_connect(int sock, struct url *url, struct url *proxy)
 }
 
 int
-http_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
+http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
-	struct stat	 sb;
 	char		 range[BUFSIZ];
-	off_t		 offset;
-	const char	*basic_auth = NULL;
-	FILE		*fin;
-	int		 flags, res = -1;
+	const char	*basic_auth;
+	int		 res;
 
-	if ((fin = fdopen(s, "r+")) == NULL)
-		err(1, "%s: fdopen", __func__);
-
-	offset = 0;
-	if (resume) {
-		if (stat(out_fn, &sb) == 0) {
-			offset = sb.st_size;
-			snprintf(range, sizeof(range),
-			    "Range: bytes=%lld-\r\n", sb.st_size);
-		} else
-			resume = 0;
-	}
-
-	if (url->user[0] || url->pass[0])
-		basic_auth = base64_encode(url->user, url->pass);
-
-	fprintf(fin,
+	basic_auth = base64_encode(url->user, url->pass);
+	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
+	send_cmd(__func__, http_fp,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
 	    "%s"
 	    "%s%s"
 	    "\r\n",
-	    (url->path[0]) ? url->path : "/",
+	    url->path[0] ? url->path : "/",
 	    url->host,
 	    ua,
-	    (resume) ? range : "",
-	    (basic_auth) ? "Authorization: Basic " : "",
-	    (basic_auth) ? basic_auth : "");
-
-	fflush(fin);
-	if ((res = http_response_code(fin)) == -1)
+	    offset ? range : "",
+	    basic_auth ? "Authorization: Basic " : "",
+	    basic_auth ? basic_auth : "");
+	res = http_response(http_fp, hdrs);
+	if (res != 200 && res != 206)
 		goto err;
 
-	if (http_parse_headers(fin, hdrs) != 0) {
-		res = -1;
-		goto err;
-	}
-
-	flags = O_CREAT | O_WRONLY;
-	if (resume && (res == 206))
-		flags |= O_APPEND;
-	else {
-		flags |= O_TRUNC;
+	/* Expected a partial content but got full content */
+	if (offset && (res == 200)) {
 		offset = 0;
+		if (truncate(fn, 0) == -1)
+			err(1, "%s: truncate", __func__);
 	}
 
-	switch (res) {
-	case 206:	/* Partial content */
-	case 200:	/* OK */
-		retr_file(fin, out_fn, flags, hdrs->c_len + offset, offset);
-		break;
-	}
-
+	retr_file(http_fp, fn, hdrs->c_len + offset, offset);
 err:
-	fclose(fin);
+	fclose(http_fp);
 	return (res);
 }
 
 int
-http_parse_headers(FILE *fin, struct headers *hdrs)
-{
-	char		*buf;
-	size_t		 len;
-	int		 ret = -1;
-
-	while ((buf = http_response(fin, &len))) {
-		if (len == 0)
-			break; /* end of headers */
-
-		if (header_insert(hdrs, buf) != 0)
-			goto err;
-		
-		free(buf);
-	}
-
-	ret = 0;
-err:
-	free(buf);
-	return (ret);
-}
-
-char *
-http_response(FILE *fp, size_t *len)
-{
-	char	*buf;
-	size_t	 ln;
-
-	if ((buf = fparseln(fp, &ln, NULL, "\0\0\0", 0)) == NULL) {
-		warn("%s", __func__);
-		return (NULL);
-	}
-
-	if (ln > 0 && buf[ln - 1] == '\r')
-		buf[--ln] = '\0';
-
-	*len = ln;
-	return (buf);
-}
-
-int
-http_response_code(FILE *fp)
+http_response(FILE *fp, struct headers *hdrs)
 {
 	char		*buf;
 	size_t		 len;
 	int		 res;
 
-	buf = http_response(fp, &len);
+	buf = http_parseln(fp, NULL);
 	res = response_code(buf);
 	free(buf);
+	while ((buf = http_parseln(fp, &len))) {
+		if (len == 0)
+			break;	/* end of headers */
+
+		if (hdrs && header_insert(hdrs, buf) != 0)
+			return (-1);
+
+		free(buf);
+	}
+
 	return (res);
+}
+
+char *
+http_parseln(FILE *fp, size_t *lenp)
+{
+	char	*buf;
+	size_t	 len;
+
+	if ((buf = fparseln(fp, &len, NULL, "\0\0\0", 0)) == NULL)
+		err(1, "%s", __func__);
+
+	if (len > 0 && buf[len - 1] == '\r')
+		buf[--len] = '\0';
+
+	if (lenp)
+		*lenp = len;
+
+	return (buf);
 }
 

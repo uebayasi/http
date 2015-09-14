@@ -44,7 +44,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
@@ -64,10 +63,9 @@
 int	 https_vprintf(struct tls *, const char *, ...)
     __attribute__((__format__ (printf, 2, 3)))
     __attribute__((__nonnull__ (2)));
-char	*https_response(size_t *);
-int	 https_parse_headers(struct headers *);
-int	 https_response_code(void);
-void	 https_retr_file(const char *, int, off_t, off_t);
+char	*https_parseln(size_t *);
+int	 https_response(struct headers *);
+void	 https_retr_file(const char *, off_t, off_t);
 
 struct tls_config	*https_init(void);
 
@@ -182,7 +180,7 @@ https_connect(struct url *url, struct url *proxy)
 	}
 
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "443", sizeof(url->port));
+		(void)strlcpy(url->port, "https", sizeof(url->port));
 
 	if ((s = http_connect(url, proxy)) == -1)
 		return (-1);
@@ -196,28 +194,15 @@ https_connect(struct url *url, struct url *proxy)
 }
 
 int
-https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
+https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
-	struct stat		 sb;
 	char			 range[BUFSIZ];
-	const char		*basic_auth = NULL;
-	off_t			 offset;
-	int			 flags, res = -1, ret;
+	const char		*basic_auth;
+	int			 res, ret;
 	extern const char	*ua;
 
-	offset = 0;
-	if (resume) {
-		if (stat(out_fn, &sb) == 0) {
-			offset = sb.st_size;
-			snprintf(range, sizeof(range),
-			    "Range: bytes=%lld-\r\n", sb.st_size);
-		} else
-			resume = 0;
-	}
-
-	if (url->user[0] || url->pass[0])
-		basic_auth = base64_encode(url->user, url->pass);
-
+	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
+	basic_auth = base64_encode(url->user, url->pass);
 	https_vprintf(ctx,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
@@ -225,36 +210,24 @@ https_get(struct url *url, const char *out_fn, int resume, struct headers *hdrs)
 	    "%s"
 	    "%s%s"
 	    "\r\n",
-	    (url->path[0]) ? url->path : "/",
+	    url->path[0] ? url->path : "/",
 	    url->host,
 	    ua,
-	    (resume) ? range : "",
-	    (basic_auth) ? "Authorization: Basic " : "",
-	    (basic_auth) ? basic_auth : "");
-
-	if ((res = https_response_code()) == -1)
+	    offset ? range : "",
+	    basic_auth ? "Authorization: Basic " : "",
+	    basic_auth ? basic_auth : "");
+	res = https_response(hdrs);
+	if (res != 200 && res != 206)
 		goto err;
 
-	if (https_parse_headers(hdrs) != 0) {
-		res = -1;
-		goto err;
-	}
-
-	flags = O_CREAT | O_WRONLY;
-	if (resume && (res == 206))
-		flags |= O_APPEND;
-	else {
-		flags |= O_TRUNC;
+	/* Expected a partial content but got full content */
+	if (offset && (res == 200)) {
 		offset = 0;
+		if (truncate(fn, 0) == -1)
+			err(1, "%s: truncate", __func__);
 	}
 
-	switch (res) {
-	case 206:	/* Partial content */
-	case 200:	/* OK */
-		https_retr_file(out_fn, flags, hdrs->c_len + offset, offset);
-		break;
-	}
-
+	https_retr_file(fn, hdrs->c_len + offset, offset);
 err:
 	while ((ret = tls_close(ctx)) != 0)
 		if (ret != TLS_READ_AGAIN && ret != TLS_WRITE_AGAIN)
@@ -265,24 +238,26 @@ err:
 }
 
 void
-https_retr_file(const char *out_fn, int flags, off_t file_sz, off_t offset)
+https_retr_file(const char *fn, off_t file_sz, off_t offset)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
 	char		*cp;
 	static char	*buf;
-	int		 fd, ret;
-
-	if (strcmp(out_fn, "-") == 0)
-		fd = STDOUT_FILENO;
-	else if ((fd = open(out_fn, flags, 0666)) == -1)
-		err(1, "%s: open %s", __func__, out_fn);
+	int		 fd, flags, ret;
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
 		if (buf == NULL)
 			err(1, "%s: malloc", __func__);
 	}
+
+	flags = O_CREAT | O_WRONLY;
+	if (offset)
+		flags |= O_APPEND;
+
+	if ((fd = open(fn, flags, 0666)) == -1)
+		err(1, "%s: open %s", __func__, fn);
 
 	start_progress_meter(file_sz, &offset);
 	while (1) {
@@ -306,9 +281,33 @@ https_retr_file(const char *out_fn, int flags, off_t file_sz, off_t offset)
 		}
 	}
 
-	stop_progress_meter();
-	if (fd != STDOUT_FILENO)
+	if (strcmp(fn, "-"))
 		close(fd);
+
+	stop_progress_meter();
+}
+
+int
+https_response(struct headers *hdrs)
+{
+	char		*buf;
+	size_t		 len;
+	int		 res;
+
+	buf = https_parseln(NULL);
+	res = response_code(buf);
+	free(buf);
+	while ((buf == https_parseln(&len))) {
+		if (len == 0)
+			break;	/* end of headers */
+
+		if (hdrs && header_insert(hdrs, buf) != 0)
+			return (-1);
+
+		free(buf);
+	}
+
+	return (res);
 }
 
 int
@@ -338,7 +337,7 @@ again:
 }
 
 char *
-https_response(size_t *lenp)
+https_parseln(size_t *lenp)
 {
 	size_t	 i, len, nr;
 	char	*buf, *q, c;
@@ -373,42 +372,9 @@ again:
 	if (i && buf[i - 1] == '\r')
 		buf[--i] = '\0';
 
-	*lenp = i;
+	if (lenp)
+		*lenp = i;
+
 	return (buf);
 }
 
-int
-https_parse_headers(struct headers *hdrs)
-{
-	char		*buf;
-	size_t		 len;
-	int		 ret = -1;
-
-	while ((buf = https_response(&len))) {
-		if (len == 0)
-			break; /* end of headers */
-
-		if (header_insert(hdrs, buf) != 0)
-			goto err;
-
-		free(buf);
-	}
-
-	ret = 0;
-err:
-	free(buf);
-	return (ret);
-}
-
-int
-https_response_code(void)
-{
-	char		*buf;
-	size_t		 len;
-	int		 res;
-
-	buf = https_response(&len);
-	res = response_code(buf);
-	free(buf);
-	return (res);
-}
