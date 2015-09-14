@@ -88,7 +88,7 @@ tcp_connect(const char *host, const char *port)
 		    sizeof(hbuf), NULL, 0, NI_NUMERICHOST) != 0)
 			(void)strlcpy(hbuf, "(unknown)", sizeof(hbuf));
 
-		log_info("Trying %s...\n", hbuf);
+		log_info("Trying %s...", hbuf);
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 		if (s == -1) {
 			cause = "socket";
@@ -410,6 +410,7 @@ log_info(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
 	va_end(ap);
 }
 
@@ -432,7 +433,7 @@ log_request(struct url *url, struct url *proxy)
 
 	if (proxy)
 		log_info("Requesting %s://%s%s%s%s%s%s%s"
-		    " (via %s://%s%s%s%s%s%s)\n",
+		    " (via %s://%s%s%s%s%s%s)",
 		    proto_str(url->proto),
 		    url->user[0] ? url->user : "",
 		    url->pass[0] ? ":*****" : "",
@@ -451,7 +452,7 @@ log_request(struct url *url, struct url *proxy)
 		    proxy->port[0] ? ":" : "",
 		    proxy->port[0] ? proxy->port : "");
 	else
-		log_info("Requesting %s://%s%s%s%s%s%s%s\n",
+		log_info("Requesting %s://%s%s%s%s%s%s%s",
 		    proto_str(url->proto),
 		    url->user[0] ? url->user : "",
 		    url->pass[0] ? ":*****" : "",

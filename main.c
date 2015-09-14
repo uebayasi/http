@@ -151,7 +151,7 @@ retry:
 				argv[i] = res_hdrs.location;
 
 			free(url_str);
-			log_info("Redirected to %s\n", res_hdrs.location);
+			log_info("Redirected to %s", res_hdrs.location);
 			goto retry;
 		case 416:	/* Range not Satisfiable */
 			/* Ideally should check Content-Range header */

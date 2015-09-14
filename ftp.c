@@ -75,7 +75,7 @@ ftp_connect(struct url *url, struct url *proxy)
 	if (ftp_response(NULL) != POSITIVE_OK)
 		return (-1);
 
-	log_info("Connected to %s\n", url->host);
+	log_info("Connected to %s", url->host);
 	if (ftp_auth(url) == -1)
 		return (-1);
 
@@ -90,7 +90,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	off_t		 file_sz;
 	int	 	 code, data_sock, ret;
 
-	log_info("Using binary mode to transfer files.\n");
+	log_info("Using binary mode to transfer files.");
 	code = ftp_send_cmd(__func__, NULL, "TYPE I");
 	if (code != POSITIVE_OK)
 		return (-1);
@@ -303,7 +303,7 @@ ftp_parseln(void)
 		if (buf[len - 1] == '\r')
 			buf[--len] = '\0';
 
-		log_info("%s\n", buf);
+		log_info("%s", buf);
 		if (len == 3 || buf[3] == ' ')	/* last line */
 			break;
 
