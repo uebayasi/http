@@ -297,7 +297,7 @@ https_response(struct headers *hdrs)
 	buf = https_parseln(NULL);
 	res = response_code(buf);
 	free(buf);
-	while ((buf == https_parseln(&len))) {
+	while ((buf = https_parseln(&len))) {
 		if (len == 0)
 			break;	/* end of headers */
 
