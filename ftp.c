@@ -42,7 +42,7 @@
 
 static FILE	*ctrl_fp;
 
-int	 ftp_auth(struct url *);
+int	 ftp_auth(const char *, const char *);
 char	*ftp_parseln(void);
 int	 ftp_pasv(void);
 int	 ftp_response(char **);
@@ -76,7 +76,7 @@ ftp_connect(struct url *url, struct url *proxy)
 		return (-1);
 
 	log_info("Connected to %s", url->host);
-	if (ftp_auth(url) == -1)
+	if (ftp_auth(url->user, url->pass) == -1)
 		return (-1);
 
 	return (ctrl_sock);
@@ -222,21 +222,22 @@ ftp_pasv(void)
 }
 
 int
-ftp_auth(struct url *url)
+ftp_auth(const char *user, const char *pass)
 {
 	int	code;
 
-	if (url->user[0] == '\0')
-		(void)strlcpy(url->user, "anonymous", sizeof(url->user));
+	if (user[0])
+		code = ftp_send_cmd(__func__, NULL, "USER %s", user);
+	else
+		code = ftp_send_cmd(__func__, NULL, "USER %s", "anonymous");
 
-	code = ftp_send_cmd(__func__, NULL, "USER %s", url->user);
 	if (code != POSITIVE_OK && code != POSITIVE_INTER)
 		return (-1);
 
-	if (url->pass[0])
-		code = ftp_send_cmd(__func__, NULL, "PASS %s", url->pass);
+	if (pass[0])
+		code = ftp_send_cmd(__func__, NULL, "PASS %s", pass);
 	else
-		code = ftp_send_cmd(__func__, NULL, "PASS user@");
+		code = ftp_send_cmd(__func__, NULL, "PASS user@hostname");
 
 	if (code != POSITIVE_OK)
 		return (-1);
