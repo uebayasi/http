@@ -317,19 +317,9 @@ int
 ftp_send_cmd(const char *where, char **response_line, const char *fmt, ...)
 {
 	va_list	ap;
-	int	code;
 
-	va_start(ap, fmt);
-	if (vfprintf(ctrl_fp, fmt, ap) == -1)
-		errx(1, "%s: vfprintf failed", where);
+	va_start (ap, fmt);
+	vsend_cmd(where, ctrl_fp, fmt, ap);
 	va_end(ap);
-
-	if (fprintf(ctrl_fp, "\r\n") == -1)
-		errx(1, "%s: fprintf failed", where);
-
-	if (fflush(ctrl_fp) != 0)
-		err(1, "%s: fflush", where);
-
-	code = ftp_response(response_line);
-	return (code);
+	return (ftp_response(response_line));
 }

@@ -364,9 +364,20 @@ send_cmd(const char *where, FILE *fp, const char *fmt, ...)
 	va_list	ap;
 
 	va_start(ap, fmt);
+	vsend_cmd(where, fp, fmt, ap);
+	va_end(ap);
+}
+
+void
+vsend_cmd(const char *where, FILE *fp, const char *fmt, va_list ap) 
+{
+
 	if (vfprintf(fp, fmt, ap) == -1)
 		errx(1, "%s: vfprintf failed", where);
-	va_end(ap);
+
+	if (fprintf(fp, "\r\n") == -1)
+		errx(1, "%s: fprintf failed", where);
+
 	if (fflush(fp) != 0)
 		err(1, "%s: fflush", where);
 }

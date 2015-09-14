@@ -48,6 +48,7 @@ void		 log_info(const char *, ...)
 void		 send_cmd(const char *, FILE *, const char *, ...)
     __attribute__((__format__ (printf, 3, 4)))
     __attribute__((__nonnull__ (3)));
+void		 vsend_cmd(const char *, FILE *, const char *, va_list);
 void		 log_request(struct url *, struct url *);
 void	 	 retr_file(FILE *, const char *, off_t, off_t);
 int		 response_code(char *);

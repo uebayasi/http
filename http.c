@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <netdb.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,8 +68,7 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
-	    "%s%s"
-	    "\r\n",
+	    "%s%s",
 	    url->host,
 	    url->port,
 	    url->host,
@@ -96,8 +96,7 @@ http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
 	    "%s"
-	    "%s%s"
-	    "\r\n",
+	    "%s%s",
 	    url->path[0] ? url->path : "/",
 	    url->host,
 	    ua,
