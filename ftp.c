@@ -33,13 +33,19 @@
 
 #include "http.h"
 
+#define POSITIVE_PRE	100
+#define POSITIVE_OK	200
+#define POSITIVE_INTER	300
+#define NEGATIVE_TRANS	400
+#define NEGATIVE_PERM	500
+
 static FILE	*ctrl_fp;
 
 int	 ftp_auth(struct url *);
-int	 ftp_response_code(const char *);
-off_t	 ftp_size(const char *);
 char	*ftp_parseln(void);
 int	 ftp_pasv(void);
+int	 ftp_response(char **);
+off_t	 ftp_size(const char *);
 
 int
 ftp_connect(struct url *url, struct url *proxy)
@@ -61,15 +67,13 @@ ftp_connect(struct url *url, struct url *proxy)
 	if (proxy && proxy_connect(ctrl_fp, url, proxy) == -1)
 		return (-1);
 
-	log_info("Connected to %s\n", url->host);
 	/* read greeting */
-	if (ftp_response_code("2") != 0)
+	if (ftp_response(NULL) != POSITIVE_OK)
 		return (-1);
 
-	if (ftp_auth(url) == -1) {
-		warnx("Login %s failed", url->user);
+	log_info("Connected to %s\n", url->host);
+	if (ftp_auth(url) == -1)
 		return (-1);
-	}
 
 	return (ctrl_sock);
 }
@@ -78,13 +82,13 @@ int
 ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
 	FILE		*data_fp;
-	char		*buf, *dir, *file;
+	char		*dir, *file;
 	off_t		 file_sz;
-	int	 	 data_sock, ret;
+	int	 	 code, data_sock, ret;
 
 	log_info("Using binary mode to transfer files.\n");
 	send_cmd(__func__, ctrl_fp, "TYPE I\r\n");
-	if (ftp_response_code("2") != 0)
+	if (ftp_response(NULL) != POSITIVE_OK)
 		return (-1);
 
 	if ((dir = dirname(url->path)) == NULL)
@@ -95,7 +99,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 
 	if (strcmp(dir, "/") != 0) {
 		send_cmd(__func__, ctrl_fp, "CWD %s\r\n", dir);
-		if (ftp_response_code("2") != 0)
+		if (ftp_response(NULL) != POSITIVE_OK)
 			errx(1, "%s: %s No such file or directory",
 			    __func__, dir);
 	}
@@ -109,7 +113,8 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 
 	if (offset) {
 		send_cmd(__func__, ctrl_fp, "REST %lld\r\n", offset);
-		if (ftp_response_code("23") != 0) {
+		code = ftp_response(NULL);
+		if (code != 200 || code != 300) {
 			offset = 0;
 			if (truncate(fn, 0) == -1)
 				err(1, "%s: truncate", __func__);
@@ -118,23 +123,17 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 
 	send_cmd(__func__, ctrl_fp, "RETR %s\r\n", file);
 	/* Data connection established */
-	if ((buf = ftp_parseln()) == NULL)
+	if (ftp_response(NULL) != POSITIVE_PRE)
 		return (-1);
-	else if (buf[0] != '1') {
-		ret = -1;
-		warnx("%s", buf);
-		goto exit;
-	} else
-		free(buf);
 
 	retr_file(data_fp, fn, file_sz, offset);
 	/* RETR response after the file transfer completion */
-	ftp_response_code("2");
-	ret = 200;
+	if (ftp_response(NULL) != POSITIVE_OK)
+		return (-1);
 
-exit:
+	ret = 200;
 	send_cmd(__func__, ctrl_fp, "QUIT\r\n");
-	ftp_response_code("2");
+	ftp_response(NULL);
 	return (ret);
 }
 
@@ -142,6 +141,7 @@ off_t
 ftp_size(const char *fn)
 {
 	char		*buf, *s;
+	const char	*errstr;
 	off_t	 	 file_sz;
 	int		 old_verbose;
 	extern int	 verbose;
@@ -150,18 +150,16 @@ ftp_size(const char *fn)
 	verbose = 0;
 	file_sz = 0;
 	send_cmd(__func__, ctrl_fp, "SIZE %s\r\n", fn);
-	if ((buf = ftp_parseln()) == NULL)
-		goto exit;
-
-	if (buf[0] == '2') {
+	if (ftp_response(&buf) == POSITIVE_OK) {
 		if ((s = strchr(buf, ' ')) != NULL) {
 			s++;
-			file_sz = strtonum(s, 0, LLONG_MAX, NULL);
+			file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
+			if (errstr)
+				err(1, "%s: strtonum", __func__);
 		}
 	}
 
 	free(buf);
-exit:
 	verbose = old_verbose;
 	return (file_sz);
 }
@@ -186,19 +184,12 @@ ftp_pasv(void)
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
 	send_cmd(__func__, ctrl_fp, "PASV\r\n");
-	if ((buf = ftp_parseln()) == NULL)
+	if (ftp_response(&buf) != POSITIVE_OK)
 		return (-1);
 
-	if (buf[0] != '2')
-		errx(1, "Can't continue without PASV support");
-
-	if ((s = strchr(buf, '(')) == NULL) {
+	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
 		warnx("Malformed PASV reply");
-		return (-1);
-	}
-
-	if ((e = strchr(buf, ')')) == NULL) {
-		warnx("Malformed PASV reply");
+		free(buf);
 		return (-1);
 	}
 
@@ -233,11 +224,14 @@ ftp_pasv(void)
 int
 ftp_auth(struct url *url)
 {
+	int	code;
+
 	if (url->user[0] == '\0')
 		(void)strlcpy(url->user, "anonymous", sizeof(url->user));
 
 	send_cmd(__func__, ctrl_fp, "USER %s\r\n", url->user);
-	if (ftp_response_code("23") != 0)
+	code = ftp_response(NULL);
+	if (code != POSITIVE_OK && code != POSITIVE_INTER)
 		return (-1);
 
 	if (url->pass[0])
@@ -245,29 +239,58 @@ ftp_auth(struct url *url)
 	else
 		send_cmd(__func__, ctrl_fp, "PASS\r\n");
 
-	if (ftp_response_code("2") != 0)
+	if (ftp_response(NULL) != POSITIVE_OK)
 		return (-1);
 
 	return (0);
 }
 
 int
-ftp_response_code(const char *res_code)
+ftp_response(char **linep)
 {
-	char	*buf;
-	int	 ret;
+	char		*buf, *line;
+	const char	*errstr;
+	int		 code = -1;
 
-	ret = -1;
-	if ((buf = ftp_parseln()) == NULL)
-		goto exit;
+	if ((line = ftp_parseln()) == NULL) {
+		if (linep)
+			*linep = NULL;
+		return (code);
+	}
 
-	if (strchr(res_code, buf[0]) == NULL)
-		goto exit;
+	if ((buf = strndup(line, 3)) == NULL)
+		err(1, "%s: strndup", __func__);
 
-	ret = 0;
-exit:
+	/* validity: 100 < code < 553 */
+	(void)strtonum(buf, POSITIVE_PRE, NEGATIVE_PERM + 53, &errstr);
+	if (errstr)
+		err(1, "%s: illegal response code %s", __func__, buf);
+
 	free(buf);
-	return (ret);
+	switch (line[0]) {
+	case '1':
+		code = POSITIVE_PRE;
+		break;
+	case '2':
+		code = POSITIVE_OK;
+		break;
+	case '3':
+		code = POSITIVE_INTER;
+		break;
+	case '4':
+		code = NEGATIVE_TRANS;
+		break;
+	case '5':
+		code = NEGATIVE_PERM;
+		break;
+	}
+
+	if (linep)
+		*linep = line;
+	else
+		free(line);
+	
+	return (code);
 }
 
 char *
