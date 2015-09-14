@@ -361,7 +361,7 @@ base64_encode(const char *user, const char *pass)
 void
 send_cmd(const char *where, FILE *fp, const char *fmt, ...)
 {
-	va_list		ap;
+	va_list	ap;
 
 	va_start(ap, fmt);
 	if (vfprintf(fp, fmt, ap) == -1)
