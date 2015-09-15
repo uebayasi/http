@@ -31,7 +31,7 @@
 #include "http.h"
 
 #define USER_AGENT	"OpenBSD http"
-#define MAX_RETRIES	10
+#define MAX_REDIRECTS	10
 
 char	*absolute_url(char *, struct url *);
 int	 url_connect(struct url *, struct url *);
@@ -52,7 +52,7 @@ main(int argc, char *argv[])
 	char		*proxy_str, *url_str;
 	const char	*fn, *output = NULL, *port = NULL;
 	const char	*paths[4] = { ".", "/etc/ssl", NULL, NULL };
-	int		 ch, code, i, resume = 0, retries = 0;
+	int		 ch, code, i, resume = 0, redirects = 0;
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
@@ -115,7 +115,7 @@ main(int argc, char *argv[])
 		fn = output ? output : basename(argv[i]);
 		if (fn == NULL)
 			err(1, "basename");
-retry:
+redirected:
 		url_str = url_encode(argv[i]);
 		url_parse(url_str, &url);
 		if (url.proto == FTP && port)
@@ -140,7 +140,7 @@ retry:
 		case 302:	/* Found */
 		case 303:	/* See Other */
 		case 307:	/* Temporary Redirect */
-			if (++retries > MAX_RETRIES)
+			if (++redirects > MAX_REDIRECTS)
 				errx(1, "Too many redirections requested");
 
 			/* Relative redirects to absolute URL */
@@ -151,7 +151,7 @@ retry:
 
 			free(url_str);
 			log_info("Redirected to %s", res_hdrs.location);
-			goto retry;
+			goto redirected;
 		case 416:	/* Range not Satisfiable */
 			/* Ideally should check Content-Range header */
 			warnx("File is already fully retrieved");
@@ -162,7 +162,7 @@ retry:
 			errx(1, "Error retrieving file: %s", http_errstr(code));
 		}
 
-		retries = 0;
+		redirects = 0;
 		free(url_str);
 	}
 
