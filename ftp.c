@@ -150,19 +150,20 @@ ftp_size(const char *fn, off_t *sizep)
 
 	old_verbose = verbose;
 	verbose = 0;
-	file_sz = 0;
 	code = ftp_send_cmd(__func__, &buf, "SIZE %s", fn);
-	if (code == POSITIVE_OK) {
-		if ((s = strchr(buf, ' ')) != NULL) {
-			s++;
-			file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
-			if (errstr)
-				warnx("%s: strtonum", __func__);
-		}
-	}
+	verbose = old_verbose;
+	if (code != POSITIVE_OK)
+		return (code);
+
+	if ((s = strchr(buf, ' ')) == NULL)
+		return (NEGATIVE_PERM); /* Invalid reply */
+
+	s++;
+	file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
+	if (errstr)
+		warnx("%s: strtonum", __func__);
 
 	free(buf);
-	verbose = old_verbose;
 	if (sizep)
 		*sizep = file_sz;
 
@@ -184,16 +185,17 @@ ftp_pasv(void)
 	struct sockaddr_in	 data_addr;
 	char			*buf, *s, *e;
 	uint			 addr[4], port[2];
-	int			 sock, old_verbose, ret;
+	int			 code, old_verbose, sock, ret;
 
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
 	old_verbose = verbose;
 	verbose = 0;
-	if (ftp_send_cmd(__func__, &buf, "PASV") != POSITIVE_OK)
+	code = ftp_send_cmd(__func__, &buf, "PASV");
+	verbose = old_verbose;
+	if (code != POSITIVE_OK)
 		return (-1);
 
-	verbose = old_verbose;
 	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
 		warnx("Malformed PASV reply");
 		free(buf);
