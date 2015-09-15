@@ -60,7 +60,7 @@
 #include "http.h"
 #include "progressmeter.h"
 
-int	 https_vprintf(struct tls *, const char *, ...)
+void	https_vprintf(struct tls *, const char *, ...)
     __attribute__((__format__ (printf, 2, 3)))
     __attribute__((__nonnull__ (2)));
 char	*https_parseln(size_t *);
@@ -310,30 +310,26 @@ https_response(struct headers *hdrs)
 	return (res);
 }
 
-int
+void
 https_vprintf(struct tls *tls, const char *fmt, ...)
 {
 	va_list	 ap;
 	char	*string;
 	ssize_t	 nw;
-	int	 ret;
+	int	 len;
 
 	va_start(ap, fmt);
-	if ((ret = vasprintf(&string, fmt, ap)) == -1) {
-		va_end(ap);
-		return ret;
-	}
-
+	if ((len = vasprintf(&string, fmt, ap)) == -1)
+		errx(1, "%s: vasprintf failed", __func__);
 	va_end(ap);
 again:
-	nw = tls_write(tls, string, ret);
+	nw = tls_write(tls, string, len);
 	if (nw == TLS_WANT_POLLIN || nw == TLS_WANT_POLLOUT)
 		goto again;
 	else if (nw < 0)
 		errx(1, "%s: tls_write: %s", __func__, tls_error(tls));
 
 	free(string);
-	return ret;
 }
 
 char *
