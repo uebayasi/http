@@ -31,7 +31,6 @@ void	 http_init(void);
 char	*http_parseln(FILE *, size_t *);
 int	 http_response(FILE *, struct headers *);
 
-extern const char	*ua;
 static FILE		*http_fp;
 
 int
@@ -60,8 +59,9 @@ http_connect(struct url *url, struct url *proxy)
 int
 proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 {
-	const char	*proxy_auth;
-	int		 code;
+	extern const char	*ua;
+	const char		*proxy_auth;
+	int		 	 code;
 
 	proxy_auth = base64_encode(proxy->user, proxy->pass);
 	send_cmd(__func__, fp,
@@ -85,9 +85,10 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 int
 http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
-	char		 range[BUFSIZ];
-	const char	*basic_auth;
-	int		 res;
+	char		 	 range[BUFSIZ];
+	extern const char	*ua;
+	const char		*basic_auth;
+	int		 	 res;
 
 	basic_auth = base64_encode(url->user, url->pass);
 	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
