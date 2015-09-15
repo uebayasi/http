@@ -51,7 +51,7 @@ void		 send_cmd(const char *, FILE *, const char *, ...)
 void		 vsend_cmd(const char *, FILE *, const char *, va_list);
 void		 log_request(struct url *, struct url *);
 void	 	 retr_file(FILE *, const char *, off_t, off_t);
-int		 response_code(char *);
+int		 http_response_code(char *);
 char		*url_encode(const char *);
 void		 url_parse(const char *, struct url *);
 const char	*http_errstr(int);

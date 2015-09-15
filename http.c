@@ -128,7 +128,7 @@ http_response(FILE *fp, struct headers *hdrs)
 	int		 res;
 
 	buf = http_parseln(fp, NULL);
-	res = response_code(buf);
+	res = http_response_code(buf);
 	free(buf);
 	while ((buf = http_parseln(fp, &len))) {
 		if (len == 0)

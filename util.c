@@ -383,7 +383,7 @@ vsend_cmd(const char *where, FILE *fp, const char *fmt, va_list ap)
 }
 
 int
-response_code(char *buf)
+http_response_code(char *buf)
 {
 	const char	*errstr;
 	char		*p, *q;
