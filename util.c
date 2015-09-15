@@ -369,7 +369,7 @@ send_cmd(const char *where, FILE *fp, const char *fmt, ...)
 }
 
 void
-vsend_cmd(const char *where, FILE *fp, const char *fmt, va_list ap) 
+vsend_cmd(const char *where, FILE *fp, const char *fmt, va_list ap)
 {
 
 	if (vfprintf(fp, fmt, ap) == -1)

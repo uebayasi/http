@@ -88,7 +88,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	FILE		*data_fp;
 	char		*dir, *file;
 	off_t		 file_sz;
-	int	 	 code, data_sock, ret;
+	int		 code, data_sock, ret;
 
 	log_info("Using binary mode to transfer files.");
 	if (ftp_send_cmd(__func__, NULL, "TYPE I") != POSITIVE_OK)
@@ -140,7 +140,7 @@ ftp_size(const char *fn)
 {
 	char		*buf, *s;
 	const char	*errstr;
-	off_t	 	 file_sz;
+	off_t		 file_sz;
 	int		 old_verbose;
 
 	old_verbose = verbose;
@@ -284,7 +284,7 @@ ftp_response(char **linep)
 		*linep = line;
 	else
 		free(line);
-	
+
 	return (code);
 }
 
@@ -314,7 +314,7 @@ ftp_send_cmd(const char *where, char **response_line, const char *fmt, ...)
 {
 	va_list	ap;
 
-	va_start (ap, fmt);
+	va_start(ap, fmt);
 	vsend_cmd(where, ctrl_fp, fmt, ap);
 	va_end(ap);
 	return (ftp_response(response_line));
