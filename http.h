@@ -34,6 +34,10 @@ struct url {
 	int	proto;
 };
 
+/* main.c */
+extern const char	*ua;
+int			 verbose;
+
 /* http.c */
 int	 http_connect(struct url *, struct url *);
 int	 proxy_connect(FILE *, struct url *, struct url *);
@@ -58,6 +62,9 @@ const char	*http_errstr(int);
 const char	*base64_encode(const char *, const char *);
 
 #ifndef SMALL
+/* main.c */
+extern char	*tls_options;
+
 /* https.c */
 int	https_connect(struct url *, struct url *);
 int	https_get(const char *, off_t, struct url *, struct headers *);

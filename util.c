@@ -414,7 +414,6 @@ void
 log_info(const char *fmt, ...)
 {
 	va_list		ap;
-	extern int	verbose;
 
 	if (verbose == 0)
 		return;

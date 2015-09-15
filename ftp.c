@@ -142,7 +142,6 @@ ftp_size(const char *fn)
 	const char	*errstr;
 	off_t	 	 file_sz;
 	int		 old_verbose;
-	extern int	 verbose;
 
 	old_verbose = verbose;
 	verbose = 0;

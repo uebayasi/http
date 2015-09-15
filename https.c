@@ -91,7 +91,6 @@ struct tls_config *
 https_init(void)
 {
 	struct tls_config	*tls_config;
-	extern char		*tls_options;
 	char			*str;
 	int			 depth;
 	uint32_t		 http_tls_protocols;
@@ -196,10 +195,9 @@ https_connect(struct url *url, struct url *proxy)
 int
 https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
-	char			 range[BUFSIZ];
-	const char		*basic_auth;
-	int			 res, ret;
-	extern const char	*ua;
+	char		 range[BUFSIZ];
+	const char	*basic_auth;
+	int		 res, ret;
 
 	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
 	basic_auth = base64_encode(url->user, url->pass);
