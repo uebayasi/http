@@ -186,13 +186,16 @@ ftp_pasv(void)
 	struct sockaddr_in	 data_addr;
 	char			*buf, *s, *e;
 	uint			 addr[4], port[2];
-	int			 sock, ret;
+	int			 sock, old_verbose, ret;
 
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
+	old_verbose = verbose;
+	verbose = 0;
 	if (ftp_send_cmd(__func__, &buf, "PASV") != POSITIVE_OK)
 		return (-1);
 
+	verbose = old_verbose;
 	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
 		warnx("Malformed PASV reply");
 		free(buf);
