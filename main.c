@@ -56,11 +56,6 @@ main(int argc, char *argv[])
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
-#ifndef SMALL
-		case 'S':
-			tls_options = optarg;
-			break;
-#endif
 		case 'C':
 			resume = 1;
 			break;
@@ -70,6 +65,11 @@ main(int argc, char *argv[])
 		case 'P':
 			port = optarg;
 			break;
+#ifndef SMALL
+		case 'S':
+			tls_options = optarg;
+			break;
+#endif
 		case 'U':
 			ua = optarg;
 			break;
