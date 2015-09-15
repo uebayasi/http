@@ -49,7 +49,7 @@ static int	 ftp_response(char **);
 static int	 ftp_send_cmd(const char *, char **, const char *fmt, ...)
 		    __attribute__((__format__ (printf, 3, 4)))
 		    __attribute__((__nonnull__ (3)));
-static off_t	 ftp_size(const char *);
+static int	 ftp_size(const char *, off_t *);
 
 int
 ftp_connect(struct url *url, struct url *proxy)
@@ -76,7 +76,7 @@ ftp_connect(struct url *url, struct url *proxy)
 		goto err;
 
 	log_info("Connected to %s", url->host);
-	if (ftp_auth(url->user, url->pass) == -1) {
+	if (ftp_auth(url->user, url->pass) != POSITIVE_OK) {
 		warnx("Login %s failed.", url->user);
 		goto err;
 	}
@@ -110,7 +110,9 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 		if (ftp_send_cmd(__func__, NULL, "CWD %s", dir) != POSITIVE_OK)
 			goto err;
 
-	file_sz = ftp_size(file);
+	if (ftp_size(file, &file_sz) != POSITIVE_OK)
+		goto err;
+
 	if ((data_sock = ftp_pasv()) == -1)
 		goto err;
 
@@ -140,29 +142,33 @@ err:
 	return (ret);
 }
 
-static off_t
-ftp_size(const char *fn)
+static int
+ftp_size(const char *fn, off_t *sizep)
 {
 	char		*buf, *s;
 	const char	*errstr;
 	off_t		 file_sz;
-	int		 old_verbose;
+	int		 code, old_verbose;
 
 	old_verbose = verbose;
 	verbose = 0;
 	file_sz = 0;
-	if (ftp_send_cmd(__func__, &buf, "SIZE %s", fn) == POSITIVE_OK) {
+	code = ftp_send_cmd(__func__, &buf, "SIZE %s", fn);
+	if (code == POSITIVE_OK) {
 		if ((s = strchr(buf, ' ')) != NULL) {
 			s++;
 			file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
 			if (errstr)
-				err(1, "%s: strtonum", __func__);
+				warnx("%s: strtonum", __func__);
 		}
 	}
 
 	free(buf);
 	verbose = old_verbose;
-	return (file_sz);
+	if (sizep)
+		*sizep = file_sz;
+
+	return (code);
 }
 
 #define pack2(var, off) \
@@ -232,17 +238,14 @@ ftp_auth(const char *user, const char *pass)
 		code = ftp_send_cmd(__func__, NULL, "USER %s", "anonymous");
 
 	if (code != POSITIVE_OK && code != POSITIVE_INTER)
-		return (-1);
+		return (code);
 
 	if (pass[0])
 		code = ftp_send_cmd(__func__, NULL, "PASS %s", pass);
 	else
 		code = ftp_send_cmd(__func__, NULL, "PASS user@hostname");
 
-	if (code != POSITIVE_OK)
-		return (-1);
-
-	return (0);
+	return (code);
 }
 
 static int
