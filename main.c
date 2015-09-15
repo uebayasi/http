@@ -201,9 +201,7 @@ url_connect(struct url *url, struct url *proxy)
 		ret = https_connect(url, proxy);
 		break;
 	case FTP:
-		if ((ret = ftp_connect(url, proxy)) == -1)
-			errx(1, "Can't connect or login to host `%s'",
-			    url->host);
+		ret = ftp_connect(url, proxy);
 		break;
 #endif
 	default:

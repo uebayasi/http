@@ -73,13 +73,19 @@ ftp_connect(struct url *url, struct url *proxy)
 
 	/* read greeting */
 	if (ftp_response(NULL) != POSITIVE_OK)
-		return (-1);
+		goto err;
 
 	log_info("Connected to %s", url->host);
-	if (ftp_auth(url->user, url->pass) == -1)
-		return (-1);
+	if (ftp_auth(url->user, url->pass) == -1) {
+		warnx("Login %s failed.", url->user);
+		goto err;
+	}
 
 	return (ctrl_sock);
+err:
+	warnx("Can't connect or login to host `%s'", url->host);
+	ftp_send_cmd(__func__, NULL, "QUIT");
+	return (-1);
 }
 
 int
@@ -88,7 +94,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	FILE		*data_fp;
 	char		*dir, *file;
 	off_t		 file_sz;
-	int		 code, data_sock, ret;
+	int		 code, data_sock, ret = -1;
 
 	log_info("Using binary mode to transfer files.");
 	if (ftp_send_cmd(__func__, NULL, "TYPE I") != POSITIVE_OK)
@@ -100,15 +106,13 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	if ((file = basename(url->path)) == NULL)
 		err(1, "%s: basename", __func__);
 
-	if (strcmp(dir, "/") != 0) {
+	if (strcmp(dir, "/") != 0)
 		if (ftp_send_cmd(__func__, NULL, "CWD %s", dir) != POSITIVE_OK)
-			errx(1, "%s: %s No such file or directory",
-			    __func__, dir);
-	}
+			goto err;
 
 	file_sz = ftp_size(file);
 	if ((data_sock = ftp_pasv()) == -1)
-		return (-1);
+		goto err;
 
 	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
@@ -125,12 +129,13 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	/* Data connection established */
 	if (ftp_send_cmd(__func__, NULL, "RETR %s", file) != POSITIVE_PRE)
 	if (code != POSITIVE_PRE)
-		return (-1);
+		goto err;
 
 	retr_file(data_fp, fn, file_sz, offset);
 	if ((ret = ftp_response(NULL)) != POSITIVE_OK)
 		return (-1);
 
+err:
 	(void)ftp_send_cmd(__func__, NULL, "QUIT");
 	return (ret);
 }
