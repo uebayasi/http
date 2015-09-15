@@ -327,7 +327,7 @@ retr_file(FILE *fp, const char *fn, off_t file_sz, off_t offset)
 	if (ferror(fp))
 		err(1, "%s: fread", __func__);
 
-	if (strcmp(fn, "-"))
+	if (strcmp(fn, "-") != 0)
 		close(fd);
 
 	stop_progress_meter();

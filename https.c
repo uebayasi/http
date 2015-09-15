@@ -279,7 +279,7 @@ https_retr_file(const char *fn, off_t file_sz, off_t offset)
 		}
 	}
 
-	if (strcmp(fn, "-"))
+	if (strcmp(fn, "-") != 0)
 		close(fd);
 
 	stop_progress_meter();
