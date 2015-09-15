@@ -305,6 +305,7 @@ https_response(struct headers *hdrs)
 		free(buf);
 	}
 
+	free(buf);
 	return (res);
 }
 
