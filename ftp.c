@@ -42,14 +42,14 @@
 
 static FILE	*ctrl_fp;
 
-int	 ftp_auth(const char *, const char *);
-char	*ftp_parseln(void);
-int	 ftp_pasv(void);
-int	 ftp_response(char **);
-int	 ftp_send_cmd(const char *, char **, const char *fmt, ...)
-     __attribute__((__format__ (printf, 3, 4)))
-     __attribute__((__nonnull__ (3)));
-off_t	 ftp_size(const char *);
+static int	 ftp_auth(const char *, const char *);
+static char	*ftp_parseln(void);
+static int	 ftp_pasv(void);
+static int	 ftp_response(char **);
+static int	 ftp_send_cmd(const char *, char **, const char *fmt, ...)
+		    __attribute__((__format__ (printf, 3, 4)))
+		    __attribute__((__nonnull__ (3)));
+static off_t	 ftp_size(const char *);
 
 int
 ftp_connect(struct url *url, struct url *proxy)
@@ -135,7 +135,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	return (ret);
 }
 
-off_t
+static off_t
 ftp_size(const char *fn)
 {
 	char		*buf, *s;
@@ -169,7 +169,7 @@ ftp_size(const char *fn)
 /* 
  * Parse PASV response and return a socket descriptor to the data stream.
  */
-int
+static int
 ftp_pasv(void)
 {
 	struct sockaddr_in	 data_addr;
@@ -216,7 +216,7 @@ ftp_pasv(void)
 	return (sock);
 }
 
-int
+static int
 ftp_auth(const char *user, const char *pass)
 {
 	int	code;
@@ -240,7 +240,7 @@ ftp_auth(const char *user, const char *pass)
 	return (0);
 }
 
-int
+static int
 ftp_response(char **linep)
 {
 	char		*buf, *line;
@@ -288,7 +288,7 @@ ftp_response(char **linep)
 	return (code);
 }
 
-char *
+static char *
 ftp_parseln(void)
 {
 	char		*buf;
@@ -309,7 +309,7 @@ ftp_parseln(void)
 	return (buf);
 }
 
-int
+static int
 ftp_send_cmd(const char *where, char **response_line, const char *fmt, ...)
 {
 	va_list	ap;

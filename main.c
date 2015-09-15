@@ -33,10 +33,10 @@
 #define USER_AGENT	"OpenBSD http"
 #define MAX_REDIRECTS	10
 
-char	*absolute_url(char *, struct url *);
-int	 url_connect(struct url *, struct url *);
-int	 url_get(struct url *, const char *, int, struct headers *);
-void	 usage(void);
+static char	*absolute_url(char *, struct url *);
+static int	 url_connect(struct url *, struct url *);
+static int	 url_get(struct url *, const char *, int, struct headers *);
+static void	 usage(void);
 
 #ifndef SMALL
 char		*tls_options;
@@ -169,7 +169,7 @@ redirected:
 	return (0);
 }
 
-char *
+static char *
 absolute_url(char *url_str, struct url *orig_url)
 {
 	static char	abs_url[BUFSIZ];
@@ -187,7 +187,7 @@ absolute_url(char *url_str, struct url *orig_url)
 	return (abs_url);
 }
 
-int
+static int
 url_connect(struct url *url, struct url *proxy)
 {
 	int ret;
@@ -213,7 +213,7 @@ url_connect(struct url *url, struct url *proxy)
 	return (ret);
 }
 
-int
+static int
 url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 {
 	struct stat	sb;
@@ -243,7 +243,7 @@ url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 	return (ret);
 }
 
-void
+static void
 usage(void)
 {
 #ifndef SMALL

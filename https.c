@@ -60,12 +60,12 @@
 #include "http.h"
 #include "progressmeter.h"
 
-void	https_vprintf(struct tls *, const char *, ...)
-    __attribute__((__format__ (printf, 2, 3)))
-    __attribute__((__nonnull__ (2)));
-char	*https_parseln(size_t *);
-int	 https_response(struct headers *);
-void	 https_retr_file(const char *, off_t, off_t);
+static void	https_vprintf(struct tls *, const char *, ...)
+		    __attribute__((__format__ (printf, 2, 3)))
+		    __attribute__((__nonnull__ (2)));
+static char	*https_parseln(size_t *);
+static int	 https_response(struct headers *);
+static void	 https_retr_file(const char *, off_t, off_t);
 
 struct tls_config	*https_init(void);
 
@@ -235,7 +235,7 @@ err:
 	return (res);
 }
 
-void
+static void
 https_retr_file(const char *fn, off_t file_sz, off_t offset)
 {
 	size_t		 wlen;
@@ -285,7 +285,7 @@ https_retr_file(const char *fn, off_t file_sz, off_t offset)
 	stop_progress_meter();
 }
 
-int
+static int
 https_response(struct headers *hdrs)
 {
 	char		*buf;
@@ -308,7 +308,7 @@ https_response(struct headers *hdrs)
 	return (res);
 }
 
-void
+static void
 https_vprintf(struct tls *tls, const char *fmt, ...)
 {
 	va_list	 ap;
@@ -330,7 +330,7 @@ again:
 	free(string);
 }
 
-char *
+static char *
 https_parseln(size_t *lenp)
 {
 	size_t	 i, len;
