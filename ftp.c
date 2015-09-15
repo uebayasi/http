@@ -91,8 +91,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	int	 	 code, data_sock, ret;
 
 	log_info("Using binary mode to transfer files.");
-	code = ftp_send_cmd(__func__, NULL, "TYPE I");
-	if (code != POSITIVE_OK)
+	if (ftp_send_cmd(__func__, NULL, "TYPE I") != POSITIVE_OK)
 		return (-1);
 
 	if ((dir = dirname(url->path)) == NULL)
@@ -102,8 +101,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 		err(1, "%s: basename", __func__);
 
 	if (strcmp(dir, "/") != 0) {
-		code = ftp_send_cmd(__func__, NULL, "CWD %s", dir);
-		if (code != POSITIVE_OK)
+		if (ftp_send_cmd(__func__, NULL, "CWD %s", dir) != POSITIVE_OK)
 			errx(1, "%s: %s No such file or directory",
 			    __func__, dir);
 	}
@@ -124,8 +122,8 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 		}
 	}
 
-	code = ftp_send_cmd(__func__, NULL, "RETR %s", file);
 	/* Data connection established */
+	if (ftp_send_cmd(__func__, NULL, "RETR %s", file) != POSITIVE_PRE)
 	if (code != POSITIVE_PRE)
 		return (-1);
 
@@ -143,14 +141,13 @@ ftp_size(const char *fn)
 	char		*buf, *s;
 	const char	*errstr;
 	off_t	 	 file_sz;
-	int		 code, old_verbose;
+	int		 old_verbose;
 	extern int	 verbose;
 
 	old_verbose = verbose;
 	verbose = 0;
 	file_sz = 0;
-	code = ftp_send_cmd(__func__, &buf, "SIZE %s", fn);
-	if (code == POSITIVE_OK) {
+	if (ftp_send_cmd(__func__, &buf, "SIZE %s", fn) == POSITIVE_OK) {
 		if ((s = strchr(buf, ' ')) != NULL) {
 			s++;
 			file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
@@ -179,12 +176,11 @@ ftp_pasv(void)
 	struct sockaddr_in	 data_addr;
 	char			*buf, *s, *e;
 	uint			 addr[4], port[2];
-	int			 code, sock, ret;
+	int			 sock, ret;
 
 	memset(&addr, 0, sizeof(addr));
 	memset(&port, 0, sizeof(port));
-	code = ftp_send_cmd(__func__, &buf, "PASV");
-	if (code != POSITIVE_OK)
+	if (ftp_send_cmd(__func__, &buf, "PASV") != POSITIVE_OK)
 		return (-1);
 
 	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
