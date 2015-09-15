@@ -134,7 +134,8 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 		goto err;
 
 	retr_file(data_fp, fn, file_sz, offset);
-	ret = ftp_response(NULL);
+	if ((ret = ftp_response(NULL)) != POSITIVE_OK)
+		ret = -1;
 err:
 	(void)ftp_send_cmd(__func__, NULL, "QUIT");
 	return (ret);
