@@ -128,9 +128,7 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 		}
 	}
 
-	/* Data connection established */
 	if (ftp_send_cmd(__func__, NULL, "RETR %s", file) != POSITIVE_PRE)
-	if (code != POSITIVE_PRE)
 		goto err;
 
 	retr_file(data_fp, fn, file_sz, offset);
