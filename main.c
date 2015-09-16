@@ -83,8 +83,6 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	argv += optind;
-	if (argc == 0)
-		usage();
 
 #ifdef SMALL
 	/*
@@ -110,6 +108,11 @@ main(int argc, char *argv[])
 		if (proxy.port[0] == '\0')
 			(void)strlcpy(proxy.port, "www", sizeof(proxy.port));
 	}
+
+#ifndef SMALL
+	if (argc == 0)
+		ftp_command(NULL);
+#endif
 
 	for (i = 0; i < argc; i++) {
 		fn = output ? output : basename(argv[i]);

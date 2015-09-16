@@ -81,6 +81,9 @@ ftp_connect(struct url *url, struct url *proxy)
 		goto err;
 	}
 
+	if (url->path[strlen(url->path) - 1] == '/')
+		ftp_command(ctrl_fp);
+
 	return (ctrl_sock);
 err:
 	warnx("Can't connect or login to host `%s'", url->host);

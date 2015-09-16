@@ -11,7 +11,7 @@ LDADD+=		-lutil
 DPADD+= 	${LIBUTIL}
 
 .ifndef SMALL
-SRCS+=		ftp.c https.c
+SRCS+=		ftp.c ftp_interpreter.c https.c
 LDADD+=		-ltls -lssl -lcrypto
 DPADD+=		${LIBTLS} ${LIBSSL} ${LIBCRYPTO}
 .endif
