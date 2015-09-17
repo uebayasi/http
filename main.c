@@ -121,6 +121,7 @@ main(int argc, char *argv[])
 redirected:
 		url_str = url_encode(argv[i]);
 		url_parse(url_str, &url);
+		free(url_str);
 		if (url.proto == FTP && port)
 			if (strlcpy(url.port, port, sizeof(url.port))
 			    >= sizeof(url.port))
@@ -152,7 +153,6 @@ redirected:
 			else
 				argv[i] = res_hdrs.location;
 
-			free(url_str);
 			log_info("Redirected to %s", res_hdrs.location);
 			goto redirected;
 		case 416:	/* Range not Satisfiable */
@@ -166,7 +166,6 @@ redirected:
 		}
 
 		redirects = 0;
-		free(url_str);
 	}
 
 	return (0);
