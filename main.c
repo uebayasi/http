@@ -157,7 +157,7 @@ redirected:
 			    url.host);
 
 		if (url_connect(&url, proxy) == -1)
-			return (-1);
+			return (1);
 
 		log_request(&url, proxy);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
@@ -186,7 +186,7 @@ redirected:
 			warnx("File is already fully retrieved");
 			break;
 		case -1:
-			return (-1);
+			return (1);
 		default:
 			errx(1, "Error retrieving file: %s", http_errstr(code));
 		}
