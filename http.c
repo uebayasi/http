@@ -39,7 +39,7 @@ http_connect(struct url *url, struct url *proxy)
 	int		 s;
 
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "www", sizeof(url->port));
+		(void)strlcpy(url->port, "80", sizeof(url->port));
 
 	host = proxy ? proxy->host : url->host;
 	port = proxy ? proxy->port : url->port;
