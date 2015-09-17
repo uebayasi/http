@@ -340,7 +340,7 @@ base64_encode(const char *user, const char *pass)
 	char		*creds, b64_creds[BUFSIZ];
 	int		 ret;
 
-	if (user == NULL || pass == NULL)
+	if (user[0] == '\0' || pass[0] == '\0')
 		return (NULL);
 
 	if ((ret = asprintf(&creds, "%s:%s", user, pass)) == -1)
