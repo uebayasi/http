@@ -34,9 +34,12 @@
 #define MAX_REDIRECTS	10
 
 static char	*absolute_url(char *, struct url *);
+static int	 handle_args(int, char **,int, const char *, const char *);
 static int	 url_connect(struct url *, struct url *);
 static int	 url_get(struct url *, const char *, int, struct headers *);
 static void	 usage(void);
+
+static struct url	*proxy_getenv(void);
 
 #ifndef SMALL
 char		*tls_options;
@@ -47,12 +50,9 @@ int		 verbose = 1;
 int
 main(int argc, char *argv[])
 {
-	struct url	 url, proxy;
-	struct headers	 res_hdrs;
-	char		*proxy_str, *url_str;
-	const char	*fn, *output = NULL, *port = NULL;
+	const char	*output = NULL, *port = NULL;
 	const char	*paths[4] = { ".", "/etc/ssl", NULL, NULL };
-	int		 ch, code, i, resume = 0, redirects = 0;
+	int		 ch, resume = 0;
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
@@ -97,23 +97,47 @@ main(int argc, char *argv[])
 	if (tame("dns inet stdio ioctl cpath wpath", paths) != 0)
 		err(1, "tame");
 
-	if ((proxy_str = getenv("http_proxy")) != NULL && *proxy_str == '\0')
-		proxy_str = NULL;
-
-	if (proxy_str) {
-		url_parse(proxy_str, &proxy);
-		if (proxy.proto != HTTP)
-			errx(1, "Invalid proxy protocol: %s", proxy_str);
-
-		if (proxy.port[0] == '\0')
-			(void)strlcpy(proxy.port, "www", sizeof(proxy.port));
-	}
-
 #ifndef SMALL
 	if (argc == 0)
 		ftp_command(NULL);
 #endif
 
+	return (handle_args(argc, argv, resume, output, port));
+}
+
+static struct url *
+proxy_getenv(void)
+{
+	static struct url	 proxy;
+	char			*proxy_str;
+
+	if ((proxy_str = getenv("http_proxy")) != NULL && *proxy_str == '\0')
+		proxy_str = NULL;
+
+	if (proxy_str == NULL) 
+		return (NULL);
+
+	url_parse(proxy_str, &proxy);
+	if (proxy.proto != HTTP)
+		errx(1, "Invalid proxy protocol: %s", proxy_str);
+
+	if (proxy.port[0] == '\0')
+		(void)strlcpy(proxy.port, "www", sizeof(proxy.port));
+
+	return (&proxy);
+}
+
+static int
+handle_args(int argc, char *argv[], int resume, const char *output,
+    const char *port)
+{
+	struct url	*proxy, url;
+	struct headers	 res_hdrs;
+	const char	*fn;
+	char		*url_str;
+	int		 code, i, redirects = 0;
+
+	proxy = proxy_getenv();
 	for (i = 0; i < argc; i++) {
 		fn = output ? output : basename(argv[i]);
 		if (fn == NULL)
@@ -130,10 +154,10 @@ redirected:
 		if (strcmp(url.path, "/") == 0 || strlen(url.path) == 0)
 			errx(1, "No filename after host: %s", url.host);
 
-		if (url_connect(&url, proxy_str ? &proxy : NULL) == -1)
+		if (url_connect(&url, proxy) == -1)
 			return (-1);
 
-		log_request(&url, proxy_str ? &proxy : NULL);
+		log_request(&url, proxy);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
 		code = url_get(&url, fn, resume, &res_hdrs);
 		switch (code) {
