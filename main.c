@@ -151,8 +151,10 @@ redirected:
 			    >= sizeof(url.port))
 				errx(1, "port overflow: %s", port);
 
-		if (strcmp(url.path, "/") == 0 || strlen(url.path) == 0)
-			errx(1, "No filename after host: %s", url.host);
+		if (url.proto != FTP && output == NULL &&
+		    (strcmp(url.path, "/") == 0 || strlen(url.path) == 0))
+			errx(1, "No filename after host (use -o): %s",
+			    url.host);
 
 		if (url_connect(&url, proxy) == -1)
 			return (-1);

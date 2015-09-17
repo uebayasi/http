@@ -254,7 +254,9 @@ https_retr_file(const char *fn, off_t file_sz, off_t offset)
 	if (offset)
 		flags |= O_APPEND;
 
-	if ((fd = open(fn, flags, 0666)) == -1)
+	if (strcmp(fn, "-") == 0)
+		fd = STDOUT_FILENO;
+	else if ((fd = open(fn, flags, 0666)) == -1)
 		err(1, "%s: open %s", __func__, fn);
 
 	start_progress_meter(file_sz, &offset);
