@@ -34,7 +34,7 @@
 #define MAX_REDIRECTS	10
 
 static char	*absolute_url(char *, struct url *);
-static int	 handle_args(int, char **,int, const char *, const char *);
+static int	 handle_args(int, char **);
 static int	 url_connect(struct url *, struct url *);
 static int	 url_get(struct url *, const char *, int, struct headers *);
 static void	 usage(void);
@@ -47,12 +47,14 @@ char		*tls_options;
 const char	*ua = USER_AGENT;
 int		 verbose = 1;
 
+static const char	*output, *port;
+static int		 resume;
+
 int
 main(int argc, char *argv[])
 {
-	const char	*output = NULL, *port = NULL;
 	const char	*paths[4] = { ".", "/etc/ssl", NULL, NULL };
-	int		 ch, resume = 0;
+	int		 ch;
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
@@ -102,7 +104,7 @@ main(int argc, char *argv[])
 		ftp_command(NULL);
 #endif
 
-	return (handle_args(argc, argv, resume, output, port));
+	return (handle_args(argc, argv));
 }
 
 static struct url *
@@ -128,8 +130,7 @@ proxy_getenv(void)
 }
 
 static int
-handle_args(int argc, char *argv[], int resume, const char *output,
-    const char *port)
+handle_args(int argc, char *argv[])
 {
 	struct url	*proxy, url;
 	struct headers	 res_hdrs;
