@@ -30,7 +30,7 @@
 static char	*http_parseln(FILE *, size_t *);
 static int	 http_response(FILE *, struct headers *);
 
-static FILE		*http_fp;
+static FILE	*http_fp;
 
 int
 http_connect(struct url *url, struct url *proxy)

@@ -60,32 +60,31 @@
 #include "http.h"
 #include "progressmeter.h"
 
-static void	https_vprintf(struct tls *, const char *, ...)
-		    __attribute__((__format__ (printf, 2, 3)))
-		    __attribute__((__nonnull__ (2)));
-static char	*https_parseln(size_t *);
-static int	 https_response(struct headers *);
-static void	 https_retr_file(const char *, off_t, off_t);
-
-struct tls_config	*https_init(void);
-
-char * const tls_verify_opts[] = {
-#define HTTP_TLS_CAFILE		0
-	"cafile",
-#define HTTP_TLS_CAPATH		1
-	"capath",
-#define HTTP_TLS_CIPHERS	2
-	"ciphers",
-#define HTTP_TLS_DONTVERIFY	3
-	"dont",
-#define HTTP_TLS_VERIFYDEPTH	4
-	"depth",
-#define HTTP_TLS_PROTOCOLS	5
-	"protocols",
-	NULL
-};
+static struct tls_config	*https_init(void);
+static void			 https_vprintf(struct tls *, const char *, ...)
+				    __attribute__((__format__ (printf, 2, 3)))
+				    __attribute__((__nonnull__ (2)));
+static char			*https_parseln(size_t *);
+static int			 https_response(struct headers *);
+static void			 https_retr_file(const char *, off_t, off_t);
 
 static struct tls	*ctx;
+char * const		 tls_verify_opts[] = {
+			 #define HTTP_TLS_CAFILE		0
+				"cafile",
+			 #define HTTP_TLS_CAPATH		1
+				"capath",
+			 #define HTTP_TLS_CIPHERS		2
+				"ciphers",
+			 #define HTTP_TLS_DONTVERIFY		3
+				"dont",
+			 #define HTTP_TLS_VERIFYDEPTH		4
+				"depth",
+			 #define HTTP_TLS_PROTOCOLS		5
+				"protocols",
+				NULL
+			};
+
 
 struct tls_config *
 https_init(void)
