@@ -195,12 +195,10 @@ https_connect(struct url *url, struct url *proxy)
 int
 https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
-	char		 range[BUFSIZ];
-	const char	*basic_auth;
-	int		 res, ret;
+	char	range[BUFSIZ];
+	int	res, ret;
 
 	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
-	basic_auth = base64_encode(url->user, url->pass);
 	https_vprintf(ctx,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
@@ -212,8 +210,8 @@ https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	    url->host,
 	    ua,
 	    offset ? range : "",
-	    basic_auth ? "Authorization: Basic " : "",
-	    basic_auth ? basic_auth : "");
+	    url->basic_auth[0] ? "Authorization: Basic " : "",
+	    url->basic_auth[0] ? url->basic_auth : "");
 	res = https_response(hdrs);
 	if (res != 200 && res != 206)
 		goto err;

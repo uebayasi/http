@@ -58,10 +58,8 @@ http_connect(struct url *url, struct url *proxy)
 int
 proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 {
-	const char	*proxy_auth;
-	int		 code;
+	int	code;
 
-	proxy_auth = base64_encode(proxy->user, proxy->pass);
 	send_cmd(__func__, fp,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
@@ -71,8 +69,8 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 	    url->port,
 	    url->host,
 	    ua,
-	    proxy_auth ? "Proxy-Authorization: Basic " : "",
-	    proxy_auth ? proxy_auth : "");
+	    url->basic_auth[0] ? "Proxy-Authorization: Basic " : "",
+	    url->basic_auth[0] ? url->basic_auth : "");
 	code = http_response(fp, NULL);
 	if (code != 200)
 		errx(1, "Error retrieving file: %s", http_errstr(code));
@@ -83,11 +81,9 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 int
 http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 {
-	char		 range[BUFSIZ];
-	const char	*basic_auth;
-	int		 res;
+	char	range[BUFSIZ];
+	int	res;
 
-	basic_auth = base64_encode(url->user, url->pass);
 	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
 	send_cmd(__func__, http_fp,
 	    "GET %s HTTP/1.0\r\n"
@@ -99,8 +95,8 @@ http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	    url->host,
 	    ua,
 	    offset ? range : "",
-	    basic_auth ? "Authorization: Basic " : "",
-	    basic_auth ? basic_auth : "");
+	    url->basic_auth[0] ? "Authorization: Basic " : "",
+	    url->basic_auth[0] ? url->basic_auth : "");
 	res = http_response(http_fp, hdrs);
 	if (res != 200 && res != 206)
 		goto err;

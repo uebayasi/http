@@ -26,12 +26,11 @@ struct headers {
 };
 
 struct url {
-	char	host[HOST_NAME_MAX+1];
-	char	port[NI_MAXSERV];
-	char	user[LOGIN_NAME_MAX];
-	char	pass[256];
-	char	path[BUFSIZ];
-	int	proto;
+	char	 host[HOST_NAME_MAX+1];
+	char	 port[NI_MAXSERV];
+	char	 basic_auth[BUFSIZ];
+	char	*path;
+	int	 scheme;
 };
 
 /* main.c */
@@ -57,7 +56,6 @@ void		 log_request(struct url *, struct url *);
 void		 retr_file(FILE *, const char *, off_t, off_t);
 int		 http_response_code(char *);
 char		*url_encode(const char *);
-void		 url_parse(const char *, struct url *);
 const char	*http_errstr(int);
 const char	*base64_encode(const char *, const char *);
 

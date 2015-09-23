@@ -22,6 +22,7 @@
 #include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
+#include <resolv.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,6 +38,7 @@ static char	*absolute_url(char *, struct url *);
 static int	 handle_args(int, char **);
 static int	 url_connect(struct url *, struct url *);
 static int	 url_get(struct url *, const char *, int, struct headers *);
+static void	 url_parse(const char *, struct url *);
 static void	 usage(void);
 
 static struct url	*proxy_getenv(void);
@@ -120,8 +122,8 @@ proxy_getenv(void)
 		return (NULL);
 
 	url_parse(proxy_str, &proxy);
-	if (proxy.proto != HTTP)
-		errx(1, "Invalid proxy protocol: %s", proxy_str);
+	if (proxy.scheme != HTTP)
+		errx(1, "Invalid proxy scheme: %s", proxy_str);
 
 	if (proxy.port[0] == '\0')
 		(void)strlcpy(proxy.port, "80", sizeof(proxy.port));
@@ -147,12 +149,12 @@ redirected:
 		url_str = url_encode(argv[i]);
 		url_parse(url_str, &url);
 		free(url_str);
-		if (url.proto == FTP && port)
+		if (url.scheme == FTP && port)
 			if (strlcpy(url.port, port, sizeof(url.port))
 			    >= sizeof(url.port))
 				errx(1, "port overflow: %s", port);
 
-		if (url.proto != FTP && output == NULL &&
+		if (url.scheme != FTP && output == NULL &&
 		    (strcmp(url.path, "/") == 0 || strlen(url.path) == 0))
 			errx(1, "No filename after host (use -o): %s",
 			    url.host);
@@ -205,7 +207,7 @@ absolute_url(char *url_str, struct url *orig_url)
 	int		ret;
 
 	ret = snprintf(abs_url, sizeof(abs_url), "%s://%s:%s%s",
-	    (orig_url->proto == HTTP) ? "http" : "https",
+	    (orig_url->scheme == HTTP) ? "http" : "https",
 	    orig_url->host,
 	    orig_url->port,
 	    url_str);
@@ -221,7 +223,7 @@ url_connect(struct url *url, struct url *proxy)
 {
 	int ret;
 
-	switch (url->proto) {
+	switch (url->scheme) {
 	case HTTP:
 		ret = http_connect(url, proxy);
 		break;
@@ -234,7 +236,7 @@ url_connect(struct url *url, struct url *proxy)
 		break;
 #endif
 	default:
-		errx(1, "%s: Invalid protocol", __func__);
+		errx(1, "%s: Invalid scheme", __func__);
 	}
 
 	return (ret);
@@ -251,7 +253,7 @@ url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 	if (resume && strcmp(fn, "-") && stat(fn, &sb) == 0)
 		offset = sb.st_size;
 
-	switch (url->proto) {
+	switch (url->scheme) {
 	case HTTP:
 		ret = http_get(fn, offset, url, hdrs);
 		break;
@@ -264,10 +266,64 @@ url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 		break;
 #endif
 	default:
-		errx(1, "%s: Invalid protocol", __func__);
+		errx(1, "%s: Invalid scheme", __func__);
 	}
 
 	return (ret);
+}
+
+void
+url_parse(const char *url_str, struct url *url)
+{
+	char	*t;
+
+	memset(url, 0, sizeof(*url));
+	while (isblank((unsigned char)*url_str))
+		url_str++;
+
+	/* Determine the scheme */
+	if ((t = strstr(url_str, "://")) != NULL) {
+		if (strncasecmp(url_str, "http://", 7) == 0)
+			url->scheme = HTTP;
+		else if (strncasecmp(url_str, "https://", 8) == 0)
+			url->scheme = HTTPS;
+		else if (strncasecmp(url_str, "ftp://", 6) == 0)
+			url->scheme = FTP;
+		else
+			errx(1, "%s: Invalid scheme %s", __func__, url_str);
+
+		url_str = t + 3;
+	} else
+		url->scheme = FTP;	/* default to FTP */
+
+	/* Prepare Basic Auth of credentials if present */
+	if ((t = strchr(url_str, '@')) != NULL) {
+		if (b64_ntop((unsigned char *)url_str, t - url_str,
+		    url->basic_auth, sizeof(url->basic_auth)) == -1)
+			errx(1, "error in base64 encoding");
+
+		url_str = ++t;
+	}
+	
+	/* Extract path component */
+	if ((t = strchr(url_str, '/')) != NULL) {
+		if ((url->path = strdup(t)) == NULL)
+			err(1, "%s: strdup", __func__);
+
+		*t = '\0';
+	}
+
+	/* hostname and port */
+	if ((t = strchr(url_str, ':')) != NULL)	{
+		*t++ = '\0';
+		if (strlcpy(url->port, t, sizeof(url->port)) >=
+		    sizeof(url->port))
+			errx(1, "%s: port too long", __func__);
+	}
+
+	if (strlcpy(url->host, url_str, sizeof(url->host)) >=
+	    sizeof(url->host))
+		errx(1, "%s: hostname too long", __func__);
 }
 
 static void

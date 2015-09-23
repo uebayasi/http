@@ -53,7 +53,6 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <netdb.h>
-#include <resolv.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,7 +62,7 @@
 #include "http.h"
 #include "progressmeter.h"
 
-const char	*proto_str(int);
+const char	*scheme_str(int);
 int		 unsafe_char(const char *);
 
 int
@@ -183,83 +182,6 @@ url_encode(const char *path)
 	return (epath);
 }
 
-/* parse <proto>://<user>:<pass>@<host>:<port>/<path> */
-void
-url_parse(const char *url_str, struct url *url)
-{
-	char	*curl, *e, *s, *t;
-
-	memset(url, 0, sizeof(struct url));
-	while (isblank((unsigned char)*url_str))
-		url_str++;
-
-#ifdef SMALL
-	if (strstr(url_str, "//") && strncasecmp(url_str, "http://", 7))
-		errx(1, "Unknown protocol");
-#endif
-
-#ifndef SMALL
-	if (strncasecmp(url_str, "http://", 7) == 0)
-		url->proto = HTTP;
-	else if (strncasecmp(url_str, "https://", 8) == 0)
-		url->proto = HTTPS;
-	else if (strncasecmp(url_str, "ftp://", 6) == 0)
-		url->proto = FTP;
-	else
-		errx(1, "%s: Invalid protocol %s", __func__, url_str);
-#endif
-
-	if ((curl = strdup(url_str)) == NULL)
-		err(1, "%s: strdup", __func__);
-
-	if ((s = strstr(curl, "//")) != NULL)
-		s += 2;
-	else
-		s = curl;
-
-	/* extract url path */
-	if ((e = strchr(s, '/'))) {
-		if (strlcpy(url->path, e,
-		    sizeof(url->path)) >= sizeof(url->path))
-			errx(1, "%s: path overflow", __func__);
-
-		*e = '\0';
-	}
-
-	/* extract user and password */
-	if ((e = strchr(s, '@'))) {
-		*e++ = '\0';
-		if ((t = strchr(s, ':'))) {
-			*t++ = '\0';
-			if (strlcpy(url->user, s,
-			    sizeof(url->user)) >= sizeof(url->user))
-				errx(1, "%s: user overflow", __func__);
-		}
-
-		if (t) {
-			if (strlcpy(url->pass, t,
-			    sizeof(url->pass)) >= sizeof(url->pass))
-				errx(1, "%s: pass overflow", __func__);
-		}
-
-		s = e;
-	}
-
-	/* extract url port */
-	if ((t = strchr(s, ':'))) {
-		*t++ = '\0';
-		if (strlcpy(url->port, t,
-		    sizeof(url->port)) >= sizeof(url->port))
-			errx(1, "%s: port overflow", __func__);
-	}
-
-	/* finally extract host */
-	if (strlcpy(url->host, s, sizeof(url->host)) >= sizeof(url->host))
-		errx(1, "%s: host overflow", __func__);
-
-	free(curl);
-}
-
 int
 header_insert(struct headers *hdrs, const char *buf)
 {
@@ -335,31 +257,6 @@ retr_file(FILE *fp, const char *fn, off_t file_sz, off_t offset)
 	stop_progress_meter();
 }
 
-const char *
-base64_encode(const char *user, const char *pass)
-{
-	static char	 basic_auth[BUFSIZ];
-	char		*creds, b64_creds[BUFSIZ];
-	int		 ret;
-
-	if (user[0] == '\0' || pass[0] == '\0')
-		return (NULL);
-
-	if ((ret = asprintf(&creds, "%s:%s", user, pass)) == -1)
-		errx(1, "%s: asprintf failed", __func__);
-
-	if (b64_ntop((unsigned char *)creds, ret,
-	    b64_creds, sizeof(b64_creds)) == -1)
-		errx(1, "error in base64 encoding");
-
-	free(creds);
-	ret = snprintf(basic_auth, BUFSIZ, "%s\r\n", b64_creds);
-	if (ret == -1 || ret > BUFSIZ)
-		errx(1, "%s: basic_auth overflow", __func__);
-
-	return (basic_auth);
-}
-
 void
 send_cmd(const char *where, FILE *fp, const char *fmt, ...)
 {
@@ -431,7 +328,7 @@ log_request(struct url *url, struct url *proxy)
 {
 	int custom_port = 0;
 
-	switch (url->proto) {
+	switch (url->scheme) {
 	case HTTP:
 		custom_port = strcmp(url->port, "80") ? 1 : 0;
 		break;
@@ -444,31 +341,22 @@ log_request(struct url *url, struct url *proxy)
 	}
 
 	if (proxy)
-		log_info("Requesting %s://%s%s%s%s%s%s%s"
-		    " (via %s://%s%s%s%s%s%s)",
-		    proto_str(url->proto),
-		    url->user[0] ? url->user : "",
-		    url->pass[0] ? ":*****" : "",
-		    (url->user[0] || url->pass[0]) ? "@" : "",
+		log_info("Requesting %s://%s%s%s%s"
+		    " (via %s://%s%s%s)",
+		    scheme_str(url->scheme),
 		    url->host,
 		    custom_port ? ":" : "",
 		    custom_port ? url->port : "",
 		    url->path,
 
 		    /* via proxy part */
-		    (proxy->proto == HTTP) ? "http" : "https",
-		    proxy->user[0] ? proxy->user : "",
-		    proxy->pass[0] ? ":*****" : "",
-		    (proxy->user[0] || proxy->pass[0]) ? "@" : "",
+		    (proxy->scheme == HTTP) ? "http" : "https",
 		    proxy->host,
 		    proxy->port[0] ? ":" : "",
 		    proxy->port[0] ? proxy->port : "");
 	else
-		log_info("Requesting %s://%s%s%s%s%s%s%s",
-		    proto_str(url->proto),
-		    url->user[0] ? url->user : "",
-		    url->pass[0] ? ":*****" : "",
-		    (url->user[0] || url->pass[0]) ? "@" : "",
+		log_info("Requesting %s://%s%s%s%s",
+		    scheme_str(url->scheme),
 		    url->host,
 		    custom_port ? ":" : "",
 		    custom_port ? url->port : "",
@@ -476,9 +364,9 @@ log_request(struct url *url, struct url *proxy)
 }
 
 const char *
-proto_str(int proto)
+scheme_str(int scheme)
 {
-	switch (proto) {
+	switch (scheme) {
 	case HTTP:
 		return ("http");
 	case HTTPS:

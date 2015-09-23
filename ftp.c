@@ -77,8 +77,8 @@ ftp_connect(struct url *url, struct url *proxy)
 		goto err;
 
 	log_info("Connected to %s", url->host);
-	if (ftp_auth(url->user, url->pass) != POSITIVE_OK) {
-		warnx("Login %s failed.", url->user);
+	if (ftp_auth("anonymous", "user@host") != POSITIVE_OK) {
+		warnx("Login %s failed.", "anonymous");
 		goto err;
 	}
 
