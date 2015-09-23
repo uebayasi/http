@@ -28,4 +28,4 @@
 void	start_progress_meter(off_t, off_t *);
 void	stop_progress_meter(void);
 
-#endif 
+#endif

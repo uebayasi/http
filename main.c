@@ -34,14 +34,14 @@
 #define USER_AGENT	"OpenBSD http"
 #define MAX_REDIRECTS	10
 
-static char	*absolute_url(char *, struct url *);
-static int	 handle_args(int, char **);
-static int	 url_connect(struct url *, struct url *);
-static int	 url_get(struct url *, const char *, int, struct headers *);
-static void	 url_parse(const char *, struct url *);
-static void	 usage(void);
-
+static char		*absolute_url(char *, struct url *);
+static int		 handle_args(int, char **);
 static struct url	*proxy_getenv(void);
+static int		 url_connect(struct url *, struct url *);
+static int		 url_get(struct url *, const char *, int,
+			     struct headers *);
+static void		 url_parse(const char *, struct url *);
+static void		 usage(void);
 
 #ifndef SMALL
 char		*tls_options;
@@ -118,7 +118,7 @@ proxy_getenv(void)
 	if ((proxy_str = getenv("http_proxy")) != NULL && *proxy_str == '\0')
 		proxy_str = NULL;
 
-	if (proxy_str == NULL) 
+	if (proxy_str == NULL)
 		return (NULL);
 
 	url_parse(proxy_str, &proxy);
@@ -304,7 +304,7 @@ url_parse(const char *url_str, struct url *url)
 
 		url_str = ++t;
 	}
-	
+
 	/* Extract path component */
 	if ((t = strchr(url_str, '/')) != NULL) {
 		if ((url->path = strdup(t)) == NULL)
