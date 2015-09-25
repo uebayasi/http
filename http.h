@@ -35,7 +35,7 @@ struct url {
 
 /* main.c */
 extern const char	*ua;
-int			 verbose;
+extern int		 verbose;
 
 /* http.c */
 int	 http_connect(struct url *, struct url *);
