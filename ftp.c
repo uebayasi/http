@@ -134,8 +134,10 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 		}
 	}
 
-	if (ftp_send_cmd(__func__, NULL, "RETR %s", file) != POSITIVE_PRE)
+	if (ftp_send_cmd(__func__, NULL, "RETR %s", file) != POSITIVE_PRE) {
+		fclose(data_fp);
 		goto err;
+	}
 
 	retr_file(data_fp, fn, file_sz, offset);
 	fclose(data_fp);
