@@ -205,7 +205,7 @@ https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	    "%s"
 	    "%s%s"
 	    "\r\n",
-	    url->path[0] ? url->path : "/",
+	    url->path ? url->path : "/",
 	    url->host,
 	    ua,
 	    offset ? range : "",

@@ -347,7 +347,7 @@ log_request(struct url *url, struct url *proxy)
 		    url->host,
 		    custom_port ? ":" : "",
 		    custom_port ? url->port : "",
-		    url->path,
+		    url->path ? url->path : "",
 
 		    /* via proxy part */
 		    (proxy->scheme == HTTP) ? "http" : "https",
@@ -360,7 +360,7 @@ log_request(struct url *url, struct url *proxy)
 		    url->host,
 		    custom_port ? ":" : "",
 		    custom_port ? url->port : "",
-		    url->path);
+		    url->path ? url->path : "");
 }
 
 const char *

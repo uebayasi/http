@@ -91,7 +91,7 @@ http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	    "User-Agent: %s\r\n"
 	    "%s"
 	    "%s%s",
-	    url->path[0] ? url->path : "/",
+	    url->path ? url->path : "/",
 	    url->host,
 	    ua,
 	    offset ? range : "",
