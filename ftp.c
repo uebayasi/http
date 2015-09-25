@@ -55,7 +55,6 @@ int
 ftp_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
-	size_t		 path_len;
 	int		 ctrl_sock;
 
 	if (url->port[0] == '\0')
@@ -82,9 +81,7 @@ ftp_connect(struct url *url, struct url *proxy)
 		goto err;
 	}
 
-	path_len = strlen(url->path);
-	/* ftp to a directory starts an interpreter instead of auto fetching */
-	if (path_len && url->path[path_len - 1] == '/')
+	if (url->path == NULL || strcmp(url->path, "/") == 0)
 		ftp_command(ctrl_fp);
 
 	return (ctrl_sock);
