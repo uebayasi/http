@@ -22,7 +22,6 @@
 
 #include <err.h>
 #include <fcntl.h>
-#include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -81,7 +80,8 @@ ftp_connect(struct url *url, struct url *proxy)
 		goto err;
 	}
 
-	if (url->path == NULL || strcmp(url->path, "/") == 0)
+	if (url->path == NULL || strcmp(url->path, "/") == 0 ||
+	    url->path[strlen(url->path) - 1] == '/')
 		ftp_command(ctrl_fp);
 
 	return (ctrl_sock);
@@ -103,18 +103,21 @@ ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	if (ftp_send_cmd(__func__, NULL, "TYPE I") != POSITIVE_OK)
 		goto err;
 
-	if ((dir = dirname(url->path)) == NULL)
-		err(1, "%s: dirname", __func__);
-
-	if ((file = basename(url->path)) == NULL)
-		err(1, "%s: basename", __func__);
-
-	if (strcmp(dir, "/") != 0)
-		if (ftp_send_cmd(__func__, NULL, "CWD %s", dir) != POSITIVE_OK)
-			goto err;
-
-	if (ftp_size(file, &file_sz) != POSITIVE_OK)
+	file = strrchr(url->path, '/');
+	if (file == NULL || file == url->path)
+		dir = NULL;
+	else {
+		dir = url->path;
+		*file++ = '\0';
+	}
+		
+	if (dir && ftp_send_cmd(__func__, NULL, "CWD %s", dir) != POSITIVE_OK)
 		goto err;
+
+	if (ftp_size(file, &file_sz) != POSITIVE_OK) {
+		log_info("failed to get size of file %s", file);
+		goto err;
+	}
 
 	if ((data_sock = ftp_pasv()) == -1)
 		goto err;

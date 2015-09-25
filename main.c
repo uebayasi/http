@@ -185,6 +185,7 @@ redirected:
 			errx(1, "Error retrieving file: %s", http_errstr(code));
 		}
 
+		free(url.path);
 		redirects = 0;
 		fn = NULL;
 	}
