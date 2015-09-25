@@ -19,7 +19,6 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
-#include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
@@ -36,6 +35,7 @@
 
 static char		*absolute_url(char *, struct url *);
 static int		 handle_args(int, char **);
+static const char	*output_filename(struct url *);
 static struct url	*proxy_getenv(void);
 static int		 url_connect(struct url *, struct url *);
 static int		 url_get(struct url *, const char *, int,
@@ -136,28 +136,19 @@ handle_args(int argc, char *argv[])
 {
 	struct url	*proxy, url;
 	struct headers	 res_hdrs;
-	const char	*fn;
+	const char	*fn = NULL;
 	char		*url_str;
 	int		 code, i, redirects = 0;
 
 	proxy = proxy_getenv();
 	for (i = 0; i < argc; i++) {
-		fn = output ? output : basename(argv[i]);
-		if (fn == NULL)
-			err(1, "basename");
 redirected:
 		url_str = url_encode(argv[i]);
 		url_parse(url_str, &url);
 		free(url_str);
-		if (url.scheme == FTP && port)
-			if (strlcpy(url.port, port, sizeof(url.port))
-			    >= sizeof(url.port))
-				errx(1, "port overflow: %s", port);
-
-		if (url.scheme != FTP && output == NULL &&
-		    (strcmp(url.path, "/") == 0 || strlen(url.path) == 0))
-			errx(1, "No filename after host (use -o): %s",
-			    url.host);
+		/* evaluate fn just once in case of redirects */
+		if (fn == NULL)
+			fn = output_filename(&url);
 
 		if (url_connect(&url, proxy) == -1)
 			return (1);
@@ -195,9 +186,27 @@ redirected:
 		}
 
 		redirects = 0;
+		fn = NULL;
 	}
 
 	return (0);
+}
+
+static const char *
+output_filename(struct url *url)
+{
+	const char	*fn = NULL;
+
+	if (output)
+		return (output);
+
+	if (url->path && (fn = strrchr(url->path, '/')) != NULL)
+		fn++;
+
+	if (url->scheme != FTP && (fn == NULL || fn[0] == '\0'))
+		errx(1, "No filename after host (use -o): %s", url->host);
+
+	return (fn);
 }
 
 static char *
@@ -324,6 +333,12 @@ url_parse(const char *url_str, struct url *url)
 	if (strlcpy(url->host, url_str, sizeof(url->host)) >=
 	    sizeof(url->host))
 		errx(1, "%s: hostname too long", __func__);
+
+	/* overwrite port with commandline argument if given */
+	if (url->scheme == FTP && port)
+		if (strlcpy(url->port, port, sizeof(url->port))
+		    >= sizeof(url->port))
+			errx(1, "%s: port overflow: %s", __func__, port);
 }
 
 static void
