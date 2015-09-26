@@ -92,7 +92,7 @@ err:
 }
 
 int
-ftp_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
+ftp_get(const char *fn, off_t offset, struct url *url)
 {
 	FILE		*data_fp;
 	char		*dir, *file;

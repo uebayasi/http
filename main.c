@@ -272,7 +272,7 @@ url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
 		ret = https_get(fn, offset, url, hdrs);
 		break;
 	case FTP:
-		ret = ftp_get(fn, offset, url, hdrs);
+		ret = ftp_get(fn, offset, url);
 		break;
 #endif
 	default:
