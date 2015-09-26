@@ -150,7 +150,6 @@ https_init(void)
 		default:
 			errx(1, "Unknown -S suboption `%s'",
 			    suboptarg ? suboptarg : "");
-			/* NOTREACHED */
 		}
 	}
 
