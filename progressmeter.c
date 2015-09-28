@@ -241,7 +241,6 @@ refresh_progress_meter(void)
 	last_update = now;
 }
 
-/*ARGSUSED*/
 static void
 update_progress_meter(int ignore)
 {
@@ -315,7 +314,6 @@ stop_progress_meter(void)
 	    (end_pos) ? ")" : "");
 }
 
-/*ARGSUSED*/
 static void
 sig_winch(int sig)
 {
