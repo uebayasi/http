@@ -38,8 +38,7 @@ static int		 handle_args(int, char **);
 static const char	*output_filename(struct url *);
 static struct url	*proxy_getenv(void);
 static int		 url_connect(struct url *, struct url *);
-static int		 url_get(struct url *, const char *, int,
-			     struct headers *);
+static int		 url_get(struct url *, const char *, struct headers *);
 static void		 url_parse(const char *, struct url *);
 static void		 usage(void);
 
@@ -155,7 +154,7 @@ redirected:
 
 		log_request(&url, proxy);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
-		code = url_get(&url, fn, resume, &res_hdrs);
+		code = url_get(&url, fn, &res_hdrs);
 		switch (code) {
 		case 200:	/* OK */
 		case 206:	/* Partial Content */
@@ -253,7 +252,7 @@ url_connect(struct url *url, struct url *proxy)
 }
 
 static int
-url_get(struct url *url, const char *fn, int resume, struct headers *hdrs)
+url_get(struct url *url, const char *fn, struct headers *hdrs)
 {
 	struct stat	sb;
 	off_t		offset;
