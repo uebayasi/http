@@ -54,7 +54,8 @@ static int		 resume;
 int
 main(int argc, char *argv[])
 {
-	const char	*paths[4] = { ".", "/etc/ssl", NULL, NULL };
+	const char	*paths[5] = { "/usr/share/misc/", ".",
+				      "/etc/ssl", NULL, NULL };
 	int		 ch;
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
@@ -92,13 +93,16 @@ main(int argc, char *argv[])
 	 * "/etc/ssl" needn't be whitelisted for SMALL variant
 	 * since we disable HTTPS support.
 	 */
-	paths[1] = output;
-#else
 	paths[2] = output;
+#else
+	paths[3] = output;
 #endif
 
+#ifdef notyet
+	/* ioctl:TIOCSETAW ?? */
 	if (tame("dns inet stdio ioctl cpath wpath", paths) != 0)
 		err(1, "tame");
+#endif
 
 #ifndef SMALL
 	if (argc == 0)
