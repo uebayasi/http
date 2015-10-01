@@ -70,8 +70,6 @@ int	https_get(const char *, off_t, struct url *, struct headers *);
 /* ftp.c */
 int	ftp_connect(struct url *, struct url *);
 int	ftp_get(const char *, off_t, struct url *);
-
-/* ftp_interpreter.c */
-void	ftp_command(FILE *);
+void	ftp_command(void);
 #endif
 

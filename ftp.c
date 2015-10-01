@@ -22,6 +22,7 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <histedit.h>
 #include <limits.h>
 #include <netdb.h>
 #include <stdarg.h>
@@ -39,8 +40,13 @@
 #define NEGATIVE_TRANS	400
 #define NEGATIVE_PERM	500
 
-static FILE	*ctrl_fp;
+#define	CMD_OPEN	1
+#define	CMD_LS		2
 
+static void	 do_open(int, char **);
+static void	 do_ls(int, char **);
+static int	 exec_cmd(const char *);
+static char	*ftp_prompt(void);
 static int	 ftp_auth(const char *, const char *);
 static char	*ftp_parseln(void);
 static int	 ftp_pasv(void);
@@ -49,6 +55,20 @@ static int	 ftp_send_cmd(const char *, char **, const char *fmt, ...)
 		    __attribute__((__format__ (printf, 3, 4)))
 		    __attribute__((__nonnull__ (3)));
 static int	 ftp_size(const char *, off_t *);
+
+struct cmdtab {
+	int		  command;
+	char		 *name;
+	int		  conn;
+	const char	 *help;
+	void		(*handler)(int, char **);
+} cmdtab[] = {
+{ CMD_OPEN, "open", 0, "connect to remote ftp server", do_open },
+{ CMD_LS, "ls", 1, "list contents of remote directory", do_ls  },
+{ 0, 0, 0 }
+};
+
+static FILE	*ctrl_fp;
 
 int
 ftp_connect(struct url *url, struct url *proxy)
@@ -81,13 +101,13 @@ ftp_connect(struct url *url, struct url *proxy)
 	}
 
 	if (url->path == NULL || strcmp(url->path, "/") == 0)
-		ftp_command(ctrl_fp);
+		ftp_command();
 	else if (url->path[strlen(url->path) - 1] == '/') {
 		code = ftp_send_cmd(__func__, NULL, "CWD %s", url->path);
 		if (code != POSITIVE_OK)
 			goto err;
 
-		ftp_command(ctrl_fp);
+		ftp_command();
 	}
 
 	return (ctrl_sock);
@@ -343,4 +363,74 @@ ftp_send_cmd(const char *where, char **response_line, const char *fmt, ...)
 	vsend_cmd(where, ctrl_fp, fmt, ap);
 	va_end(ap);
 	return (ftp_response(response_line));
+}
+
+void
+ftp_command(void)
+{
+	HistEvent	 hev;
+	EditLine	*el;
+	History		*hist;
+	Tokenizer	*tok;
+	const char	*buf, **argv;
+	int		 argc, len;
+
+	if ((el = el_init(getprogname(), stdin, stdout, stderr)) == NULL)
+		errx(1, "%s: el_init failed", __func__);
+
+	if ((hist = history_init()) == NULL)
+		errx(1, "%s: history_init failed", __func__);
+
+	history(hist, &hev, H_SETSIZE, 100);
+	el_set(el, EL_HIST, history, hist);
+	el_set(el, EL_EDITOR, "emacs");
+	el_set(el, EL_PROMPT, ftp_prompt);
+	el_source(el, NULL);
+	tok = tok_init(NULL);
+	tok_reset(tok);
+	while (1) {
+		if ((buf = el_gets(el, &len)) == NULL || len == 0) {
+			printf("\n");
+			break;
+		}
+
+		if (strlen(buf) > 1)
+			history(hist, &hev, H_ENTER, buf);
+
+		tok_str(tok, buf, &argc, &argv);
+		tok_reset(tok);
+		if (exec_cmd(argv[0]) != 0)
+			if (el_parse(el, argc, (const char **)argv) != 0)
+				printf("?Invalid command.\n");
+	}
+
+	history_end(hist);
+	el_end(el);
+	tok_end(tok);
+	if (ctrl_fp)
+		ftp_send_cmd(__func__, NULL, "QUIT");
+
+	exit(0);
+}
+
+static int
+exec_cmd(const char *cmd)
+{
+	return (1);
+}
+
+static char *
+ftp_prompt(void)
+{
+	return ("ftp> ");
+}
+
+static void
+do_open(int argc, char **argv)
+{
+}
+
+static void
+do_ls(int argc, char **argv)
+{
 }

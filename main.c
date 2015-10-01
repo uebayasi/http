@@ -106,7 +106,7 @@ main(int argc, char *argv[])
 
 #ifndef SMALL
 	if (argc == 0)
-		ftp_command(NULL);
+		ftp_command();
 #endif
 
 	return (handle_args(argc, argv));
