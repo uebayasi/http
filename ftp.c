@@ -54,7 +54,7 @@ int
 ftp_connect(struct url *url, struct url *proxy)
 {
 	const char	*host, *port;
-	int		 ctrl_sock;
+	int		 code, ctrl_sock;
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "21", sizeof(url->port));
@@ -80,9 +80,15 @@ ftp_connect(struct url *url, struct url *proxy)
 		goto err;
 	}
 
-	if (url->path == NULL || strcmp(url->path, "/") == 0 ||
-	    url->path[strlen(url->path) - 1] == '/')
+	if (url->path == NULL || strcmp(url->path, "/") == 0)
 		ftp_command(ctrl_fp);
+	else if (url->path[strlen(url->path) - 1] == '/') {
+		code = ftp_send_cmd(__func__, NULL, "CWD %s", url->path);
+		if (code != POSITIVE_OK)
+			goto err;
+
+		ftp_command(ctrl_fp);
+	}
 
 	return (ctrl_sock);
 err:
