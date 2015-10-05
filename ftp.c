@@ -63,8 +63,8 @@ struct cmdtab {
 	const char	 *help;
 	void		(*handler)(int, char **);
 } cmdtab[] = {
-{ CMD_OPEN, "open", 0, "connect to remote ftp server", do_open },
-{ CMD_LS, "ls", 1, "list contents of remote directory", do_ls  },
+{ CMD_OPEN,	"open",	0,	"connect to remote ftp server", do_open },
+{ CMD_LS,	"ls",	1,	"list contents of remote directory", do_ls },
 { 0, 0, 0 }
 };
 
