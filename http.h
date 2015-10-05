@@ -43,15 +43,16 @@ int	 proxy_connect(FILE *, struct url *, struct url *);
 int	 http_get(const char *, off_t, struct url *, struct headers *);
 
 /* util.c */
+extern int	 ftp_debug;
 int		 tcp_connect(const char *, const char *);
 int		 header_insert(struct headers *, const char *);
 void		 log_info(const char *, ...)
 		    __attribute__((__format__ (printf, 1, 2)))
 		    __attribute__((__nonnull__  (1)));
-void		 send_cmd(const char *, FILE *, const char *, ...)
-		    __attribute__((__format__ (printf, 3, 4)))
-		    __attribute__((__nonnull__ (3)));
-void		 vsend_cmd(const char *, FILE *, const char *, va_list);
+void		 send_cmd(FILE *, const char *, ...)
+		    __attribute__((__format__ (printf, 2, 3)))
+		    __attribute__((__nonnull__ (2)));
+void		 vsend_cmd(FILE *, const char *, va_list);
 void		 log_request(struct url *, struct url *);
 void		 retr_file(FILE *, const char *, off_t, off_t);
 int		 http_response_code(char *);

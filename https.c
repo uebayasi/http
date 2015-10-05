@@ -291,6 +291,9 @@ https_response(struct headers *hdrs)
 	int		 res;
 
 	buf = https_parseln(NULL);
+	if (ftp_debug)
+		fprintf(stderr, "<<< %s\n", buf);
+
 	res = http_response_code(buf);
 	free(buf);
 	while ((buf = https_parseln(&len))) {
@@ -310,12 +313,19 @@ https_response(struct headers *hdrs)
 static void
 https_vprintf(struct tls *tls, const char *fmt, ...)
 {
-	va_list	 ap;
+	va_list	 ap, ap2;
 	char	*string;
 	ssize_t	 nw;
 	int	 len;
 
 	va_start(ap, fmt);
+	if (ftp_debug) {
+		va_copy(ap2, ap);
+		fprintf(stderr, ">>> ");
+		vfprintf(stderr, fmt, ap2);
+		va_end(ap2);
+	}
+
 	if ((len = vasprintf(&string, fmt, ap)) == -1)
 		errx(1, "%s: vasprintf failed", __func__);
 	va_end(ap);

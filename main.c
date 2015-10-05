@@ -87,6 +87,7 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	argv += optind;
+	ftp_debug = getenv("FTP_DEBUG") != NULL;
 
 #ifdef SMALL
 	/*

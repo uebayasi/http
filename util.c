@@ -65,6 +65,8 @@
 const char	*scheme_str(int);
 int		 unsafe_char(const char *);
 
+int	ftp_debug = 0;
+
 int
 tcp_connect(const char *host, const char *port)
 {
@@ -258,27 +260,36 @@ retr_file(FILE *fp, const char *fn, off_t file_sz, off_t offset)
 }
 
 void
-send_cmd(const char *where, FILE *fp, const char *fmt, ...)
+send_cmd(FILE *fp, const char *fmt, ...)
 {
 	va_list	ap;
 
 	va_start(ap, fmt);
-	vsend_cmd(where, fp, fmt, ap);
+	vsend_cmd(fp, fmt, ap);
 	va_end(ap);
 }
 
 void
-vsend_cmd(const char *where, FILE *fp, const char *fmt, va_list ap)
+vsend_cmd(FILE *fp, const char *fmt, va_list ap)
 {
+	va_list	ap2;
+
+	if (ftp_debug) {
+		va_copy(ap2, ap);
+		fprintf(stderr, ">>> ");
+		vfprintf(stderr, fmt, ap2);
+		fprintf(stderr, "\n");
+		va_end(ap2);
+	}
 
 	if (vfprintf(fp, fmt, ap) == -1)
-		errx(1, "%s: vfprintf failed", where);
+		errx(1, "vsend_cmd: vfprintf failed");
 
 	if (fprintf(fp, "\r\n") == -1)
-		errx(1, "%s: fprintf failed", where);
+		errx(1, "vsend_cmd: fprintf failed");
 
 	if (fflush(fp) != 0)
-		err(1, "%s: fflush", where);
+		err(1, "vsend_cmd: fflush");
 }
 
 int

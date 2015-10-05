@@ -60,7 +60,7 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 {
 	int	code;
 
-	send_cmd(__func__, fp,
+	send_cmd(fp,
 	    "CONNECT %s:%s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -85,7 +85,7 @@ http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
 	int	res;
 
 	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
-	send_cmd(__func__, http_fp,
+	send_cmd(http_fp,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
 	    "User-Agent: %s\r\n"
@@ -122,6 +122,9 @@ http_response(FILE *fp, struct headers *hdrs)
 	int		 res;
 
 	buf = http_parseln(fp, NULL);
+	if (ftp_debug)
+		fprintf(stderr, "<<< %s\n", buf);
+
 	res = http_response_code(buf);
 	free(buf);
 	while ((buf = http_parseln(fp, &len))) {
