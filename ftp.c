@@ -48,7 +48,6 @@ static void	 do_ls(int, const char **);
 static int	 exec_cmd(int, const char **);
 static char	*ftp_prompt(void);
 static int	 ftp_auth(const char *, const char *);
-static char	*ftp_parseln(void);
 static int	 ftp_pasv(void);
 static int	 ftp_response(char **);
 static int	 ftp_send_cmd(char **, const char *fmt, ...)
@@ -289,27 +288,40 @@ ftp_response(char **linep)
 {
 	char		*buf, *line;
 	const char	*errstr;
+	size_t		 len;
 	int		 code = -1;
 
-	line = ftp_parseln();
-	if (ftp_debug)
-		fprintf(stderr, "<<< %s\n", line);
-
-	if (line == NULL) {
-		if (linep)
-			*linep = NULL;
-		return (code);
-	}
+	line = http_parseln(ctrl_fp, &len);
+	if (len < 3)
+		goto err;
 
 	if ((buf = strndup(line, 3)) == NULL)
 		err(1, "%s: strndup", __func__);
 
-	/* validity: 100 < code < 553 */
 	(void)strtonum(buf, POSITIVE_PRE, NEGATIVE_PERM + 53, &errstr);
 	if (errstr)
 		err(1, "%s: illegal response code %s", __func__, buf);
 
+	if (len >= 4 && line[3] == ' ')
+		goto done;
+
+	free(line);
+	/* Multi-line reply, parse till the end */
+	while ((line = http_parseln(ctrl_fp, &len))) {
+		if (len >= 4 && strncasecmp(line, buf, 3) == 0 &&
+		    line[3] == ' ') /* last line */
+			break;
+
+		log_info("%s", line);
+		free(line);
+	}
+
+done:
 	free(buf);
+	/* line can never be NULL, but scan-build complains? */
+	if (line == NULL)
+		goto err;
+
 	switch (line[0]) {
 	case '1':
 		code = POSITIVE_PRE;
@@ -328,33 +340,13 @@ ftp_response(char **linep)
 		break;
 	}
 
+err:
 	if (linep)
 		*linep = line;
 	else
 		free(line);
 
 	return (code);
-}
-
-static char *
-ftp_parseln(void)
-{
-	char		*buf;
-	size_t		 len;
-
-	buf = NULL;
-	while ((buf = fparseln(ctrl_fp, &len, NULL, "\0\0\0", 0)) != NULL) {
-		if (buf[len - 1] == '\r')
-			buf[--len] = '\0';
-
-		log_info("%s", buf);
-		if (len == 3 || buf[3] == ' ')	/* last line */
-			break;
-
-		free(buf);
-	}
-
-	return (buf);
 }
 
 static int

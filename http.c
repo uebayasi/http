@@ -27,7 +27,6 @@
 
 #include "http.h"
 
-static char	*http_parseln(FILE *, size_t *);
 static int	 http_response(FILE *, struct headers *);
 
 static FILE	*http_fp;
@@ -140,7 +139,7 @@ http_response(FILE *fp, struct headers *hdrs)
 	return (res);
 }
 
-static char *
+char *
 http_parseln(FILE *fp, size_t *lenp)
 {
 	char	*buf;

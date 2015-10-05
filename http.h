@@ -39,6 +39,7 @@ extern int		 verbose;
 
 /* http.c */
 int	 http_connect(struct url *, struct url *);
+char	*http_parseln(FILE *, size_t *);
 int	 proxy_connect(FILE *, struct url *, struct url *);
 int	 http_get(const char *, off_t, struct url *, struct headers *);
 
