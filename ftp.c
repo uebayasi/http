@@ -292,6 +292,7 @@ ftp_response(char **linep)
 	int		 code = -1;
 
 	line = http_parseln(ctrl_fp, &len);
+	log_info("%s", line);
 	if (len < 3)
 		goto err;
 
