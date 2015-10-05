@@ -152,7 +152,7 @@ ftp_get(const char *fn, off_t offset, struct url *url)
 
 	if (offset) {
 		code = ftp_send_cmd(NULL, "REST %lld", offset);
-		if (code != POSITIVE_OK || code != POSITIVE_INTER) {
+		if (code != POSITIVE_OK && code != POSITIVE_INTER) {
 			offset = 0;
 			if (truncate(fn, 0) == -1)
 				err(1, "%s: truncate", __func__);
