@@ -27,7 +27,7 @@
 
 #include "http.h"
 
-static int	 http_response(FILE *, struct headers *);
+static int	 http_response(FILE *, struct http_hdrs *);
 
 static FILE	*http_fp;
 
@@ -78,7 +78,7 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 }
 
 int
-http_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
+http_get(const char *fn, off_t offset, struct url *url, struct http_hdrs *hdrs)
 {
 	char	range[BUFSIZ];
 	int	res;
@@ -114,7 +114,7 @@ err:
 }
 
 static int
-http_response(FILE *fp, struct headers *hdrs)
+http_response(FILE *fp, struct http_hdrs *hdrs)
 {
 	char		*buf;
 	size_t		 len;

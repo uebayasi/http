@@ -65,7 +65,7 @@ static void			 https_vprintf(struct tls *, const char *, ...)
 				    __attribute__((__format__ (printf, 2, 3)))
 				    __attribute__((__nonnull__ (2)));
 static char			*https_parseln(size_t *);
-static int			 https_response(struct headers *);
+static int			 https_response(struct http_hdrs *);
 static void			 https_retr_file(const char *, off_t, off_t);
 
 static struct tls	*ctx;
@@ -191,7 +191,7 @@ https_connect(struct url *url, struct url *proxy)
 }
 
 int
-https_get(const char *fn, off_t offset, struct url *url, struct headers *hdrs)
+https_get(const char *fn, off_t offset, struct url *url, struct http_hdrs *hdrs)
 {
 	char	range[BUFSIZ];
 	int	res, ret;
@@ -284,7 +284,7 @@ https_retr_file(const char *fn, off_t file_sz, off_t offset)
 }
 
 static int
-https_response(struct headers *hdrs)
+https_response(struct http_hdrs *hdrs)
 {
 	char		*buf;
 	size_t		 len;

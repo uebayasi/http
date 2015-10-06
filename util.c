@@ -185,7 +185,7 @@ url_encode(const char *path)
 }
 
 int
-header_insert(struct headers *hdrs, const char *buf)
+header_insert(struct http_hdrs *hdrs, const char *buf)
 {
 	const char	*errstr;
 	size_t		 sz;

@@ -38,7 +38,8 @@ static int		 handle_args(int, char **);
 static const char	*output_filename(struct url *);
 static struct url	*proxy_getenv(void);
 static int		 url_connect(struct url *, struct url *);
-static int		 url_get(struct url *, const char *, struct headers *);
+static int		 url_get(struct url *, const char *,
+			     struct http_hdrs *);
 static void		 url_parse(const char *, struct url *);
 static void		 usage(void);
 
@@ -138,11 +139,11 @@ proxy_getenv(void)
 static int
 handle_args(int argc, char *argv[])
 {
-	struct url	*proxy, url;
-	struct headers	 res_hdrs;
-	const char	*fn = NULL;
-	char		*url_str;
-	int		 code, i, redirects = 0;
+	struct url		*proxy, url;
+	struct http_hdrs	 res_hdrs;
+	const char		*fn = NULL;
+	char			*url_str;
+	int			 code, i, redirects = 0;
 
 	proxy = proxy_getenv();
 	for (i = 0; i < argc; i++) {
@@ -257,7 +258,7 @@ url_connect(struct url *url, struct url *proxy)
 }
 
 static int
-url_get(struct url *url, const char *fn, struct headers *hdrs)
+url_get(struct url *url, const char *fn, struct http_hdrs *hdrs)
 {
 	struct stat	sb;
 	off_t		offset;

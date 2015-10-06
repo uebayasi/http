@@ -20,7 +20,7 @@
 #define HTTPS	2
 #define FTP	3
 
-struct headers {
+struct http_hdrs {
 	char	location[BUFSIZ];	/* Redirect Location */
 	off_t	c_len;			/* Content-Length */
 };
@@ -41,12 +41,12 @@ extern int		 verbose;
 int	 http_connect(struct url *, struct url *);
 char	*http_parseln(FILE *, size_t *);
 int	 proxy_connect(FILE *, struct url *, struct url *);
-int	 http_get(const char *, off_t, struct url *, struct headers *);
+int	 http_get(const char *, off_t, struct url *, struct http_hdrs *);
 
 /* util.c */
 extern int	 ftp_debug;
 int		 tcp_connect(const char *, const char *);
-int		 header_insert(struct headers *, const char *);
+int		 header_insert(struct http_hdrs *, const char *);
 void		 log_info(const char *, ...)
 		    __attribute__((__format__ (printf, 1, 2)))
 		    __attribute__((__nonnull__  (1)));
@@ -67,7 +67,7 @@ extern char	*tls_options;
 
 /* https.c */
 int	https_connect(struct url *, struct url *);
-int	https_get(const char *, off_t, struct url *, struct headers *);
+int	https_get(const char *, off_t, struct url *, struct http_hdrs *);
 
 /* ftp.c */
 int	ftp_connect(struct url *, struct url *);
