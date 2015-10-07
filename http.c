@@ -43,15 +43,15 @@ http_connect(struct url *url, struct url *proxy)
 	host = proxy ? proxy->host : url->host;
 	port = proxy ? proxy->port : url->port;
 	if ((s = tcp_connect(host, port)) == -1)
-		return (-1);
+		return -1;
 
 	if ((http_fp = fdopen(s, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
 	if (proxy && proxy_connect(http_fp, url, proxy) == -1)
-		return (-1);
+		return -1;
 
-	return (s);
+	return s;
 }
 
 int
@@ -74,7 +74,7 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 	if (code != 200)
 		errx(1, "Error retrieving file: %s", http_errstr(code));
 
-	return (0);
+	return 0;
 }
 
 int
@@ -110,7 +110,7 @@ http_get(const char *fn, off_t offset, struct url *url, struct http_hdrs *hdrs)
 	retr_file(http_fp, fn, hdrs->c_len + offset, offset);
 err:
 	fclose(http_fp);
-	return (res);
+	return res;
 }
 
 static int
@@ -131,12 +131,12 @@ http_response(FILE *fp, struct http_hdrs *hdrs)
 			break;	/* end of headers */
 
 		if (hdrs && header_insert(hdrs, buf) != 0)
-			return (-1);
+			return -1;
 
 		free(buf);
 	}
 
-	return (res);
+	return res;
 }
 
 char *
@@ -154,6 +154,6 @@ http_parseln(FILE *fp, size_t *lenp)
 	if (lenp)
 		*lenp = len;
 
-	return (buf);
+	return buf;
 }
 

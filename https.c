@@ -106,7 +106,7 @@ https_init(void)
 		errx(1, "tls set ciphers failed");
 
 	if (tls_options == NULL)
-		return (tls_config);
+		return tls_config;
 
 	while (*tls_options) {
 		switch (getsubopt(&tls_options, tls_verify_opts, &str)) {
@@ -153,7 +153,7 @@ https_init(void)
 		}
 	}
 
-	return (tls_config);
+	return tls_config;
 }
 
 int
@@ -168,26 +168,26 @@ https_connect(struct url *url, struct url *proxy)
 
 	if ((ctx = tls_client()) == NULL) {
 		warnx("failed to create tls client");
-		return (-1);
+		return -1;
 	}
 
 	if (tls_configure(ctx, tls_config) != 0) {
 		warnx("%s: %s", __func__, tls_error(ctx));
-		return (-1);
+		return -1;
 	}
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "443", sizeof(url->port));
 
 	if ((s = http_connect(url, proxy)) == -1)
-		return (-1);
+		return -1;
 
 	if (tls_connect_socket(ctx, s, url->host) != 0) {
 		warnx("%s: %s", __func__, tls_error(ctx));
-		return (-1);
+		return -1;
 	}
 
-	return (s);
+	return s;
 }
 
 int
@@ -228,7 +228,7 @@ err:
 			errx(1, "%s: tls_close: %s", __func__, tls_error(ctx));
 
 	tls_free(ctx);
-	return (res);
+	return res;
 }
 
 static void
@@ -301,13 +301,13 @@ https_response(struct http_hdrs *hdrs)
 			break;	/* end of headers */
 
 		if (hdrs && header_insert(hdrs, buf) != 0)
-			return (-1);
+			return -1;
 
 		free(buf);
 	}
 
 	free(buf);
-	return (res);
+	return res;
 }
 
 static void
@@ -378,6 +378,6 @@ again:
 	if (lenp)
 		*lenp = i;
 
-	return (buf);
+	return buf;
 }
 

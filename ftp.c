@@ -81,13 +81,13 @@ ftp_connect(struct url *url, struct url *proxy)
 	host = proxy ? proxy->host : url->host;
 	port = proxy ? proxy->port : url->port;
 	if ((ctrl_sock = tcp_connect(host, port)) == -1)
-		return (-1);
+		return -1;
 
 	if ((ctrl_fp = fdopen(ctrl_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
 	if (proxy && proxy_connect(ctrl_fp, url, proxy) == -1)
-		return (-1);
+		return -1;
 
 	/* read greeting */
 	if (ftp_response(NULL) != POSITIVE_OK)
@@ -108,11 +108,11 @@ ftp_connect(struct url *url, struct url *proxy)
 		ftp_command();
 	}
 
-	return (ctrl_sock);
+	return ctrl_sock;
 err:
 	warnx("Can't connect or login to host `%s'", url->host);
 	ftp_send_cmd(NULL, "QUIT");
-	return (-1);
+	return -1;
 }
 
 int
@@ -169,7 +169,7 @@ ftp_get(const char *fn, off_t offset, struct url *url)
 		ret = -1;
 err:
 	(void)ftp_send_cmd(NULL, "QUIT");
-	return (ret);
+	return ret;
 }
 
 static int
@@ -185,10 +185,10 @@ ftp_size(const char *fn, off_t *sizep)
 	code = ftp_send_cmd(&buf, "SIZE %s", fn);
 	verbose = old_verbose;
 	if (code != POSITIVE_OK)
-		return (code);
+		return code;
 
 	if ((s = strchr(buf, ' ')) == NULL)
-		return (NEGATIVE_PERM); /* Invalid reply */
+		return NEGATIVE_PERM; /* Invalid reply */
 
 	s++;
 	file_sz = strtonum(s, 0, LLONG_MAX, &errstr);
@@ -199,7 +199,7 @@ ftp_size(const char *fn, off_t *sizep)
 	if (sizep)
 		*sizep = file_sz;
 
-	return (code);
+	return code;
 }
 
 #define pack2(var, off) \
@@ -226,12 +226,12 @@ ftp_pasv(void)
 	code = ftp_send_cmd(&buf, "PASV");
 	verbose = old_verbose;
 	if (code != POSITIVE_OK)
-		return (-1);
+		return -1;
 
 	if ((s = strchr(buf, '(')) == NULL || (e = strchr(s, ')')) == NULL) {
 		warnx("Malformed PASV reply");
 		free(buf);
-		return (-1);
+		return -1;
 	}
 
 	s++;
@@ -242,7 +242,7 @@ ftp_pasv(void)
 
 	if (ret != 6) {
 		warnx("Passive mode address scan failure");
-		return (-1);
+		return -1;
 	}
 
 	free(buf);
@@ -259,7 +259,7 @@ ftp_pasv(void)
 	    data_addr.sin_len) == -1)
 		err(1, "%s: connect", __func__);
 
-	return (sock);
+	return sock;
 }
 
 static int
@@ -273,14 +273,14 @@ ftp_auth(const char *user, const char *pass)
 		code = ftp_send_cmd(NULL, "USER %s", "anonymous");
 
 	if (code != POSITIVE_OK && code != POSITIVE_INTER)
-		return (code);
+		return code;
 
 	if (pass[0])
 		code = ftp_send_cmd(NULL, "PASS %s", pass);
 	else
 		code = ftp_send_cmd(NULL, "PASS user@hostname");
 
-	return (code);
+	return code;
 }
 
 static int
@@ -347,7 +347,7 @@ err:
 	else
 		free(line);
 
-	return (code);
+	return code;
 }
 
 static int
@@ -358,7 +358,7 @@ ftp_send_cmd(char **response_line, const char *fmt, ...)
 	va_start(ap, fmt);
 	vsend_cmd(ctrl_fp, fmt, ap);
 	va_end(ap);
-	return (ftp_response(response_line));
+	return ftp_response(response_line);
 }
 
 void
@@ -419,20 +419,20 @@ exec_cmd(int argc, const char **argv)
 			break;
 
 	if (c->command == 0)
-		return (1);
+		return 1;
 
 	if (c->conn && ctrl_fp == NULL)
 		printf("Not connected\n");
 	else
 		c->handler(argc, argv);
 
-	return (0);
+	return 0;
 }
 
 static char *
 ftp_prompt(void)
 {
-	return ("ftp> ");
+	return "ftp> ";
 }
 
 static void

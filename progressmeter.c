@@ -98,7 +98,7 @@ monotime(void)
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
 		errx(1, "%s: %s", __func__, strerror(errno));
 
-	return (ts.tv_sec);
+	return ts.tv_sec;
 }
 
 static void

@@ -81,7 +81,7 @@ tcp_connect(const char *host, const char *port)
 	error = getaddrinfo(host, port, &hints, &res0);
 	if (error) {
 		warnx("%s: %s", host, gai_strerror(error));
-		return (-1);
+		return -1;
 	}
 
 	for (res = res0; res; res = res->ai_next) {
@@ -111,10 +111,10 @@ tcp_connect(const char *host, const char *port)
 	freeaddrinfo(res0);
 	if (s == -1) {
 		warn("%s", cause);
-		return (-1);
+		return -1;
 	}
 
-	return (s);
+	return s;
 }
 
 /*
@@ -181,7 +181,7 @@ url_encode(const char *path)
 			*(epathp++) = path[i];
 
 	*epathp = '\0';
-	return (epath);
+	return epath;
 }
 
 int
@@ -196,7 +196,7 @@ header_insert(struct http_hdrs *hdrs, const char *buf)
 		hdrs->c_len = strtonum(buf, 0, INT64_MAX, &errstr);
 		if (errstr) {
 			warn("%s: strtonum", __func__);
-			return (-1);
+			return -1;
 		}
 	}
 
@@ -206,11 +206,11 @@ header_insert(struct http_hdrs *hdrs, const char *buf)
 		sz = strlcpy(hdrs->location, buf, sizeof(hdrs->location));
 		if (sz >= sizeof(hdrs->location)) {
 			warnx("%s: Location overflow", __func__);
-			return (-1);
+			return -1;
 		}
 	}
 
-	return (0);
+	return 0;
 }
 
 void
@@ -301,23 +301,23 @@ http_response_code(char *buf)
 
 	if ((p = strchr(buf, ' ')) == NULL) {
 		warnx("%s: Malformed response", __func__);
-		return (-1);
+		return -1;
 	}
 
 	p++;
 	if ((q = strchr(p, ' ')) == NULL) {
 		warnx("%s: Malformed response", __func__);
-		return (-1);
+		return -1;
 	}
 
 	*q = '\0';
 	res = strtonum(p, 200, 503, &errstr);
 	if (errstr) {
 		warn("%s: strtonum", __func__);
-		return (-1);
+		return -1;
 	}
 
-	return (res);
+	return res;
 }
 
 void
@@ -379,14 +379,14 @@ scheme_str(int scheme)
 {
 	switch (scheme) {
 	case HTTP:
-		return ("http");
+		return "http";
 	case HTTPS:
-		return ("https");
+		return "https";
 	case FTP:
-		return ("ftp");
+		return "ftp";
 	}
 
-	return ("???");
+	return "???";
 }
 
 const char *
@@ -396,49 +396,49 @@ http_errstr(int code)
 
 	switch (code) {
 	case 400:
-		return ("400 Bad Request");
+		return "400 Bad Request";
 	case 402:
-		return ("402 Payment Required");
+		return "402 Payment Required";
 	case 403:
-		return ("403 Forbidden");
+		return "403 Forbidden";
 	case 404:
-		return ("404 Not Found");
+		return "404 Not Found";
 	case 405:
-		return ("405 Method Not Allowed");
+		return "405 Method Not Allowed";
 	case 406:
-		return ("406 Not Acceptable");
+		return "406 Not Acceptable";
 	case 408:
-		return ("408 Request Timeout");
+		return "408 Request Timeout";
 	case 409:
-		return ("409 Conflict");
+		return "409 Conflict";
 	case 410:
-		return ("410 Gone");
+		return "410 Gone";
 	case 411:
-		return ("411 Length Required");
+		return "411 Length Required";
 	case 413:
-		return ("413 Payload Too Long");
+		return "413 Payload Too Long";
 	case 414:
-		return ("414 URI Too Long");
+		return "414 URI Too Long";
 	case 415:
-		return ("415 Unsupported Media Type");
+		return "415 Unsupported Media Type";
 	case 417:
-		return ("417 Expectation Failed");
+		return "417 Expectation Failed";
 	case 426:
-		return ("426 Upgrade Required");
+		return "426 Upgrade Required";
 	case 500:
-		return ("500 Internal Server Error");
+		return "500 Internal Server Error";
 	case 501:
-		return ("501 Not Implemented");
+		return "501 Not Implemented";
 	case 502:
-		return ("502 Bad Gateway");
+		return "502 Bad Gateway";
 	case 503:
-		return ("503 Service Unavailable");
+		return "503 Service Unavailable";
 	case 504:
-		return ("504 Gateway Timeout");
+		return "504 Gateway Timeout";
 	case 505:
-		return ("505 HTTP Version Not Supported");
+		return "505 HTTP Version Not Supported";
 	default:
 		(void)snprintf(buf, sizeof(buf), "%d ???", code);
-		return (buf);
+		return buf;
 	}
 }

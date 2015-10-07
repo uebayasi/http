@@ -111,7 +111,7 @@ main(int argc, char *argv[])
 		ftp_command();
 #endif
 
-	return (handle_args(argc, argv));
+	return handle_args(argc, argv);
 }
 
 static struct url *
@@ -124,7 +124,7 @@ proxy_getenv(void)
 		proxy_str = NULL;
 
 	if (proxy_str == NULL)
-		return (NULL);
+		return NULL;
 
 	url_parse(proxy_str, &proxy);
 	if (proxy.scheme != HTTP)
@@ -133,7 +133,7 @@ proxy_getenv(void)
 	if (proxy.port[0] == '\0')
 		(void)strlcpy(proxy.port, "80", sizeof(proxy.port));
 
-	return (&proxy);
+	return &proxy;
 }
 
 static int
@@ -156,7 +156,7 @@ redirected:
 			fn = output_filename(&url);
 
 		if (url_connect(&url, proxy) == -1)
-			return (1);
+			return 1;
 
 		log_request(&url, proxy);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
@@ -185,7 +185,7 @@ redirected:
 			warnx("File is already fully retrieved");
 			break;
 		case -1:
-			return (1);
+			return 1;
 		default:
 			errx(1, "Error retrieving file: %s", http_errstr(code));
 		}
@@ -195,7 +195,7 @@ redirected:
 		fn = NULL;
 	}
 
-	return (0);
+	return 0;
 }
 
 static const char *
@@ -204,7 +204,7 @@ output_filename(struct url *url)
 	const char	*fn = NULL;
 
 	if (output)
-		return (output);
+		return output;
 
 	if (url->path && (fn = strrchr(url->path, '/')) != NULL)
 		fn++;
@@ -212,7 +212,7 @@ output_filename(struct url *url)
 	if (url->scheme != FTP && (fn == NULL || fn[0] == '\0'))
 		errx(1, "No filename after host (use -o): %s", url->host);
 
-	return (fn);
+	return fn;
 }
 
 static char *
@@ -230,7 +230,7 @@ absolute_url(char *url_str, struct url *orig_url)
 	if (ret == -1 || ret >= sizeof(abs_url))
 		errx(1, "Cannot build redirect URL");
 
-	return (abs_url);
+	return abs_url;
 }
 
 static int
@@ -254,7 +254,7 @@ url_connect(struct url *url, struct url *proxy)
 		errx(1, "%s: Invalid scheme", __func__);
 	}
 
-	return (ret);
+	return ret;
 }
 
 static int
@@ -284,7 +284,7 @@ url_get(struct url *url, const char *fn, struct http_hdrs *hdrs)
 		errx(1, "%s: Invalid scheme", __func__);
 	}
 
-	return (ret);
+	return ret;
 }
 
 void
