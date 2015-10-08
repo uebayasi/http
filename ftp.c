@@ -390,9 +390,10 @@ ftp_command(void)
 			break;
 		}
 
-		if (strlen(buf) > 1)
-			history(hist, &hev, H_ENTER, buf);
+		if (strlen(buf) <=  1)
+			continue;
 
+		history(hist, &hev, H_ENTER, buf);
 		tok_str(tok, buf, &argc, &argv);
 		tok_reset(tok);
 		if (exec_cmd(argc, argv) != 0)
