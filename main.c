@@ -100,11 +100,8 @@ main(int argc, char *argv[])
 	paths[3] = output;
 #endif
 
-#ifdef notyet
-	/* ioctl:TIOCSETAW ?? */
-	if (tame("dns inet stdio ioctl cpath wpath", paths) != 0)
+	if (tame("dns inet stdio tty cpath wpath", paths) != 0)
 		err(1, "tame");
-#endif
 
 #ifndef SMALL
 	if (argc == 0)
