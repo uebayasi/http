@@ -538,6 +538,7 @@ static void
 do_help(int argc, const char **argv)
 {
 	struct cmdtab	*c;
+	int		 i;
 
 	if (argc == 1) {
 		fprintf(stderr, "Commands are:\n");
@@ -547,16 +548,18 @@ do_help(int argc, const char **argv)
 		return;
 	}
 
-	for (c = cmdtab; c->command; c++)
-		if (strcasecmp(argv[1], c->name) == 0)
-			break;
+	for (i = 1; i < argc; i++) {
+		for (c = cmdtab; c->command; c++)
+			if (strcasecmp(argv[i], c->name) == 0)
+				break;
 
-	if (c->command == 0) {
-		fprintf(stderr, "?Invalid help command %s\n", argv[1]);
-		return;
+		if (c->command == 0) {
+			fprintf(stderr, "?Invalid help command %s\n", argv[i]);
+			continue;
+		}
+
+		fprintf(stderr, "%s\n", c->help);
 	}
-
-	fprintf(stderr, "%s\n", c->help);
 }
 
 static void
