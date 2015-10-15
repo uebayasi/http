@@ -565,6 +565,11 @@ do_help(int argc, const char **argv)
 static void
 do_cd(int argc, const char **argv)
 {
+	if (argc != 2) {
+		fprintf(stderr, "usage: cd remote-directory\n");
+		return;
+	}
+
 	if (ftp_send_cmd(NULL, "CWD %s", argv[1]) != POSITIVE_OK)
 		fprintf(stderr, "failed to change directory\n");
 }
