@@ -13,7 +13,7 @@ DPADD+= 	${LIBUTIL}
 .ifndef SMALL
 SRCS+=		ftp.c https.c
 LDADD+=		-ledit -lcurses -ltls -lssl -lcrypto
-DPADD+=		${LIBTLS} ${LIBSSL} ${LIBCRYPTO}
+DPADD+=		${LIBEDIT} ${LIBCURSES} ${LIBTLS} ${LIBSSL} ${LIBCRYPTO}
 .endif
 
 .include <bsd.prog.mk>
