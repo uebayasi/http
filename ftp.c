@@ -451,8 +451,10 @@ do_open(int argc, const char **argv)
 	url_parse(argv[1], &url);
 	ftp_connect(&url);
 	log_info("Using binary mode to transfer files.");
-	if (ftp_send_cmd(NULL, "TYPE I") != POSITIVE_OK)
+	if (ftp_send_cmd(NULL, "TYPE I") != POSITIVE_OK) {
 		fprintf(stderr, "Failed to set mode to binary\n");
+		return;
+	}
 }
 
 static void
