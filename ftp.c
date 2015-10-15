@@ -502,11 +502,22 @@ do_close(int argc, const char **argv)
 static void
 do_ls(int argc, const char **argv)
 {
-	FILE	*data_fp;
+	FILE	*data_fp, *local_fp = NULL;
 	char	*buf = NULL;
 	size_t	 sz = 0;
 	ssize_t	 len;
 	int	 data_sock;
+
+	if (argc > 3) {
+		fprintf(stderr, "usage: ls [remote-directory [local-file]]\n");
+		return;
+	}
+
+	if (argv[2] &&
+	    (local_fp = fopen(argv[2], "w")) == NULL) {
+		fprintf(stderr, "failed to open file: %s\n", argv[2]);
+		return;
+	}
 
 	if ((data_sock = ftp_pasv()) == -1) {
 		fprintf(stderr, "PASV command failed\n");
@@ -516,7 +527,8 @@ do_ls(int argc, const char **argv)
 	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	if (ftp_send_cmd(NULL, "LIST") != POSITIVE_PRE)
+	if (ftp_send_cmd(NULL, "LIST %s",
+	    argv[1] ? argv[1] : "") != POSITIVE_PRE)
 		fprintf(stderr, "LIST command failed\n");
 
 	while ((len = getline(&buf, &sz, data_fp)) != -1) {
@@ -525,11 +537,14 @@ do_ls(int argc, const char **argv)
 		else if (buf[len - 1] == '\n')
 			buf[len - 1] = '\0';
 
-		fprintf(stderr, "%s\n", buf);
+		fprintf(local_fp ? local_fp : stderr, "%s\n", buf);
 	}
 
 	free(buf);
 	fclose(data_fp);
+	if (local_fp)
+		fclose(local_fp);
+
 	if (ftp_response(NULL) != POSITIVE_OK)
 		fprintf(stderr, "LIST response not ok\n");
 }
