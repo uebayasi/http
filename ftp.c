@@ -637,9 +637,7 @@ do_get(int argc, const char **argv)
 		return;
 	}
 
-	if (retr_file(data_fp, fd, file_sz, 0) == -1)
-		warnx("failed to retrieve file: %s\n", fn);
-
+	retr_file(data_fp, fd, file_sz, 0);
 	fclose(data_fp);
 	if (ftp_response(NULL) != POSITIVE_OK) {
 		warnx("error retrieving file %s", fn);
