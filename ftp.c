@@ -468,7 +468,36 @@ do_close(int argc, const char **argv)
 static void
 do_ls(int argc, const char **argv)
 {
-	errx(1, "not yet");
+	FILE	*data_fp;
+	char	*buf = NULL;
+	size_t	 sz = 0;
+	ssize_t	 len;
+	int	 data_sock;
+
+	if ((data_sock = ftp_pasv()) == -1) {
+		fprintf(stderr, "PASV command failed\n");
+		return;
+	}
+
+	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
+		err(1, "%s: fdopen", __func__);
+
+	if (ftp_send_cmd(NULL, "LIST") != POSITIVE_PRE)
+		fprintf(stderr, "LIST command failed\n");
+
+	while ((len = getline(&buf, &sz, data_fp)) != -1) {
+		if (buf[len - 2] == '\r')
+			buf[len - 2] = '\0';
+		else if (buf[len - 1] == '\n')
+			buf[len - 1] = '\0';
+
+		fprintf(stderr, "%s\n", buf);
+	}
+
+	free(buf);
+	fclose(data_fp);
+	if (ftp_response(NULL) != POSITIVE_OK)
+		fprintf(stderr, "LIST response not ok\n");
 }
 
 static void
