@@ -288,6 +288,9 @@ ftp_response(char **linep)
 
 	line = http_parseln(ctrl_fp, &len);
 	log_info("%s", line);
+	if (ftp_debug)
+		fprintf(stderr, "<<< %s\n", line);
+
 	if (len < 3)
 		goto err;
 
