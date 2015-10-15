@@ -439,17 +439,17 @@ static void
 do_open(int argc, const char **argv)
 {
 	struct url	 url;
-	char		*url_str;
 
 	if (ctrl_fp) {
 		fprintf(stderr, "Already connected, use close first\n");
 		return;
 	}
 
-	url_str = url_encode(argv[1]);
-	url_parse(url_str, &url);
-	free(url_str);
+	url_parse(argv[1], &url);
 	ftp_connect(&url);
+	log_info("Using binary mode to transfer files.");
+	if (ftp_send_cmd(NULL, "TYPE I") != POSITIVE_OK)
+		fprintf(stderr, "Failed to set mode to binary\n");
 }
 
 static void
