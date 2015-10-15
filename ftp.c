@@ -528,7 +528,7 @@ do_help(int argc, const char **argv)
 
 		return;
 	}
-		
+
 	for (c = cmdtab; c->command; c++)
 		if (strcasecmp(argv[1], c->name) == 0)
 			break;
