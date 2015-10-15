@@ -104,6 +104,7 @@ ftp_connect(struct url *url)
 		goto err;
 
 	log_info("Connected to %s", url->host);
+	/* XXX */
 	if (ftp_auth("anonymous", "user@host") != POSITIVE_OK) {
 		warnx("Login %s failed.", "anonymous");
 		goto err;
