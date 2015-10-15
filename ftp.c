@@ -126,7 +126,9 @@ ftp_get(off_t offset, struct url *url)
 	if (ftp_send_cmd(NULL, "TYPE I") != POSITIVE_OK)
 		goto err;
 
-	file = strrchr(url->path, '/');
+	if (url->path)
+		file = strrchr(url->path, '/');
+
 	if (file == NULL || file == url->path)
 		dir = NULL;
 	else {

@@ -115,10 +115,26 @@ main(int argc, char *argv[])
 #ifndef SMALL
 	switch (argc) {
 	case 1:
-		url_str = url_encode(argv[0]);
+		/* if it's not an FTP url go to Auto Fetcher */
+		if (strstr(argv[0], "://") != NULL &&
+		    strncmp(argv[0], "ftp://", 6))
+			break;
+
+		if ((url_str = strdup(argv[0])) == NULL)
+			err(1, "strdup");
+
 		url_parse(url_str, &url);
+
+		/* if the url ends with a filename go to Auto Fetcher */
+		if (url.path && url.path[strlen(url.path) - 1] != '/') {
+			free(url_str);
+			break;
+		}
+
 		free(url_str);
-		ftp_connect(&url);
+		if (ftp_connect(&url) == -1 || ftp_get(0, &url) != 200)
+			exit(1);
+
 		/* FALLTHROUGH */
 	case 0:
 		ftp_command();
