@@ -371,17 +371,12 @@ static const char *
 output_filename(const char *url_str)
 {
 	const char	*fn, *p;
-	int		scheme = 0;
 
 	if (output)
 		return output;
 
-	if ((p = strstr(url_str, "://")) != NULL) {
-		if (strncasecmp(url_str, "ftp://", 6) == 0)
-			scheme = FTP;
-
+	if ((p = strstr(url_str, "://")) != NULL)
 		url_str = p + 3;
-	}
 
 	if ((fn = strrchr(url_str, '/')) != NULL)
 		fn++;
