@@ -46,6 +46,7 @@
 #define CMD_HELP	4
 #define CMD_CD		5
 #define CMD_PWD		6
+#define CMD_GET		7
 
 static void	 do_open(int, const char **);
 static void	 do_close(int, const char **);
@@ -53,6 +54,7 @@ static void	 do_help(int, const char **);
 static void	 do_ls(int, const char **);
 static void	 do_cd(int, const char **);
 static void	 do_pwd(int, const char **);
+static void	 do_get(int, const char **);
 static int	 exec_cmd(int, const char **);
 static char	*ftp_prompt(void);
 static int	 ftp_auth(const char *, const char *);
@@ -61,7 +63,7 @@ static int	 ftp_response(char **);
 static int	 ftp_send_cmd(char **, const char *fmt, ...)
 		    __attribute__((__format__ (printf, 2, 3)))
 		    __attribute__((__nonnull__ (2)));
-static int	 ftp_size(off_t *);
+static int	 ftp_size(const char *, off_t *);
 
 struct cmdtab {
 	int		  command;
@@ -76,6 +78,7 @@ struct cmdtab {
 { CMD_HELP,	"help",	0,	"print local help information", do_help },
 { CMD_CD,	"cd",	1,	"change remove working directory", do_cd },
 { CMD_PWD,	"pwd",	1,	"print remove working directory", do_pwd },
+{ CMD_GET,	"GET",	1,	"receive file", do_get },
 { 0 }
 };
 
@@ -154,7 +157,7 @@ ftp_retr(int fd, off_t offset)
 	off_t	 file_sz;
 	int	 data_sock, ret;
 
-	if (ftp_size(&file_sz) != POSITIVE_OK) {
+	if (ftp_size(file, &file_sz) != POSITIVE_OK) {
 		warnx("failed to get size of file %s", file);
 		return -1;
 	}
@@ -184,7 +187,7 @@ ftp_retr(int fd, off_t offset)
 }
 
 static int
-ftp_size(off_t *sizep)
+ftp_size(const char *fn, off_t *sizep)
 {
 	char		*buf, *s;
 	const char	*errstr;
@@ -193,7 +196,7 @@ ftp_size(off_t *sizep)
 
 	old_verbose = verbose;
 	verbose = 0;
-	code = ftp_send_cmd(&buf, "SIZE %s", file);
+	code = ftp_send_cmd(&buf, "SIZE %s", fn);
 	verbose = old_verbose;
 	if (code != POSITIVE_OK)
 		return code;
@@ -594,4 +597,52 @@ do_pwd(int argc, const char **argv)
 {
 	if (ftp_send_cmd(NULL, "PWD") != POSITIVE_OK)
 		fprintf(stderr, "failed to print working directory\n");
+}
+
+static void
+do_get(int argc, const char **argv)
+{
+	FILE		*data_fp;
+	const char	*fn;
+	off_t		 file_sz;
+	int		 data_sock, fd;
+
+	if (argc < 2 || argc > 3) {
+		fprintf(stderr, "usage: get remote-file [local-file]\n");
+		return;
+	}
+
+	fn = argv[2] ? argv[2] : argv[1];
+	fprintf(stderr, "local: %s remote: %s\n", fn, argv[1]);
+	if ((fd = open(fn, O_CREAT | O_WRONLY, 0666)) == -1) {
+		warn("local: %s", fn);
+		return;
+	}
+
+	if (ftp_size(fn, &file_sz) != POSITIVE_OK) {
+		warnx("failed to get size of file %s", file);
+		return;
+	}
+
+	if ((data_sock = ftp_pasv()) == -1) {
+		warnx("PASV command failed\n");
+		return;
+	}
+
+	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
+		err(1, "%s: fdopen", __func__);
+
+	if (ftp_send_cmd(NULL, "RETR %s", fn) != POSITIVE_PRE) {
+		fclose(data_fp);
+		return;
+	}
+
+	if (retr_file(data_fp, fd, file_sz, 0) == -1)
+		warnx("failed to retrieve file: %s\n", fn);
+
+	fclose(data_fp);
+	if (ftp_response(NULL) != POSITIVE_OK) {
+		warnx("error retrieving file %s", fn);
+		return;
+	}
 }
