@@ -221,7 +221,7 @@ https_get(off_t offset, struct url *url, struct http_hdrs *hdrs)
 	return res;
 }
 
-void
+int
 https_retr(int fd, off_t file_sz, off_t offset)
 {
 	size_t		 wlen;
@@ -231,8 +231,10 @@ https_retr(int fd, off_t file_sz, off_t offset)
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
-		if (buf == NULL)
-			err(1, "%s: malloc", __func__);
+		if (buf == NULL) {
+			warn("%s: malloc", __func__);
+			return -1;
+		}
 	}
 
 	start_progress_meter(file_sz, &offset);
@@ -241,7 +243,8 @@ https_retr(int fd, off_t file_sz, off_t offset)
 		if (r == TLS_WANT_POLLIN || r == TLS_WANT_POLLOUT)
 			continue;
 		else if (r < 0) {
-			errx(1, "%s: tls_read: %s", __func__, tls_error(ctx));
+			warn("%s: tls_read: %s", __func__, tls_error(ctx));
+			return -1;
 		}
 
 		if (r == 0)
@@ -250,14 +253,17 @@ https_retr(int fd, off_t file_sz, off_t offset)
 		offset += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
 			if ((i = write(fd, cp, wlen)) == -1) {
-				if (errno != EINTR)
-					err(1, "%s: write", __func__);
+				if (errno != EINTR) {
+					warn("%s: write", __func__);
+					return -1;
+				}
 			} else if (i == 0)
 				break;
 		}
 	}
 
 	stop_progress_meter();
+	return 0;
 }
 
 static int

@@ -58,7 +58,7 @@ static int		 read_message(struct imsgbuf *, struct imsg *, pid_t);
 static void		 send_message(struct imsgbuf *, void *, size_t, int);
 static int		 url_connect(struct url *);
 static int		 url_get(struct url *, off_t, struct http_hdrs *);
-static void		 url_retr(int, int, off_t, off_t);
+static int		 url_retr(int, int, off_t, off_t);
 static void		 usage(void);
 
 #ifndef SMALL
@@ -157,7 +157,7 @@ handle_args(int argc, char **argv)
 	struct ftp_ack	*ack;
 	pid_t		 pid, parent;
 	const char	*fn = NULL;
-	int		 i, fd, flags, pair[2], status;
+	int		 code, i, fd, flags, pair[2], status;
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, pair) != 0)
 		err(1, "socketpair");
@@ -202,12 +202,15 @@ handle_args(int argc, char **argv)
 		if (ack->idx != i)
 			errx(1, "index mismatch");
 
-		if (ack->code != 200 && ack->code != 206) {
+		code = ack->code;
+		if (code != 200 && code != 206) {
 			if (unlink(fn) == -1)
 				err(1, "unlink");
 
-			errx(1, "Error retrieving file: %s",
-			    http_errstr(ack->code));
+			if (code >= 400 && code <= 505) {
+				errx(1, "Error retrieving file: %s",
+			    	    http_errstr(code));
+			}
 		}
 
 		close(fd);
@@ -315,7 +318,9 @@ redirected:
 		return code;
 	}
 
-	url_retr(fd, url.scheme, res_hdrs.c_len + offset, offset);
+	if (url_retr(fd, url.scheme, res_hdrs.c_len + offset, offset) == -1)
+		return -1;
+
 	free(url.path);
 	return code;
 }
@@ -469,24 +474,28 @@ url_get(struct url *url, off_t offset, struct http_hdrs *hdrs)
 	return ret;
 }
 
-static void
+static int
 url_retr(int fd, int scheme, off_t file_sz, off_t offset)
 {
+	int ret;
+
 	switch (scheme) {
 	case HTTP:
-		http_retr(fd, file_sz, offset);
+		ret = http_retr(fd, file_sz, offset);
 		break;
 #ifndef SMALL
 	case HTTPS:
-		https_retr(fd, file_sz, offset);
+		ret = https_retr(fd, file_sz, offset);
 		break;
 	case FTP:
-		ftp_retr(fd, offset);
+		ret = ftp_retr(fd, offset);
 		break;
 #endif
 	default:
 		errx(1, "%s: Invalid scheme", __func__);
 	}
+
+	return ret;
 }
 
 void

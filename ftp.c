@@ -146,33 +146,40 @@ err:
 	return ret;
 }
 
-void
+int
 ftp_retr(int fd, off_t offset)
 {
 	FILE	*data_fp;
 	off_t	 file_sz;
-	int	 data_sock;
+	int	 data_sock, ret;
 
-	if (ftp_size(&file_sz) != POSITIVE_OK)
-		errx(1, "%s: failed to get size of file %s", __func__, file);
+	if (ftp_size(&file_sz) != POSITIVE_OK) {
+		warnx("failed to get size of file %s", file);
+		return -1;
+	}
 
-	if ((data_sock = ftp_pasv()) == -1)
-		errx(1, "%s: error retrieving file %s", __func__, file);
+	if ((data_sock = ftp_pasv()) == -1) {
+		warnx("PASV command failed\n");
+		return -1;
+	}
 
 	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
 	if (ftp_send_cmd(NULL, "RETR %s", file) != POSITIVE_PRE) {
 		fclose(data_fp);
-		return;
+		return -1;
 	}
 
-	retr_file(data_fp, fd, file_sz, offset);
+	ret = retr_file(data_fp, fd, file_sz, offset);
 	fclose(data_fp);
-	if (ftp_response(NULL) != POSITIVE_OK)
-		errx(1, "%s: error retrieving file %s", __func__, file);
+	if (ftp_response(NULL) != POSITIVE_OK) {
+		warnx("error retrieving file %s", file);
+		return -1;
+	}
 
 	(void)ftp_send_cmd(NULL, "QUIT");
+	return ret;
 }
 
 static int

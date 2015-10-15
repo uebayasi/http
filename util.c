@@ -219,7 +219,7 @@ header_insert(struct http_hdrs *hdrs, const char *buf)
 	return 0;
 }
 
-void
+int
 retr_file(FILE *fp, int fd, off_t file_sz, off_t offset)
 {
 	size_t		 r, wlen;
@@ -229,27 +229,37 @@ retr_file(FILE *fp, int fd, off_t file_sz, off_t offset)
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
-		if (buf == NULL)
-			err(1, "%s: malloc", __func__);
+		if (buf == NULL) {
+			warn("%s: malloc", __func__);
+			return -1;
+		}
 	}
 
 	start_progress_meter(file_sz, &offset);
 	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fp)) > 0) {
-		if (ferror(fp))
-			err(1, "%s: fread", __func__);
+		if (ferror(fp)) {
+			warn("%s: fread", __func__);
+			return -1;
+		}
+
 		offset += r;
 		for (cp = buf, wlen = r; wlen > 0; wlen -= i, cp += i) {
 			if ((i = write(fd, cp, wlen)) == -1) {
-				if (errno != EINTR)
-					err(1, "%s: write", __func__);
+				if (errno != EINTR) {
+					warn("%s: write", __func__);
+					return -1;
+				}
 			} else if (i == 0)
 				break;
 		}
 	}
-	if (ferror(fp))
-		err(1, "%s: fread", __func__);
+	if (ferror(fp)) {
+		warn("%s: fread", __func__);
+		return -1;
+	}
 
 	stop_progress_meter();
+	return 0;
 }
 
 void

@@ -100,10 +100,10 @@ http_get(off_t offset, struct url *url, struct http_hdrs *hdrs)
 	return res;
 }
 
-void
+int
 http_retr(int fd, off_t file_sz, off_t offset)
 {
-	retr_file(http_fp, fd, file_sz, offset);
+	return retr_file(http_fp, fd, file_sz, offset);
 }
 
 static int
