@@ -45,12 +45,14 @@
 #define	CMD_LS		3
 #define CMD_HELP	4
 #define CMD_CD		5
+#define CMD_PWD		6
 
 static void	 do_open(int, const char **);
 static void	 do_close(int, const char **);
 static void	 do_help(int, const char **);
 static void	 do_ls(int, const char **);
 static void	 do_cd(int, const char **);
+static void	 do_pwd(int, const char **);
 static int	 exec_cmd(int, const char **);
 static char	*ftp_prompt(void);
 static int	 ftp_auth(const char *, const char *);
@@ -73,6 +75,7 @@ struct cmdtab {
 { CMD_LS,	"ls",	1,	"list contents of remote directory", do_ls },
 { CMD_HELP,	"help",	0,	"print local help information", do_help },
 { CMD_CD,	"cd",	1,	"change remove working directory", do_cd },
+{ CMD_PWD,	"pwd",	1,	"print remove working directory", do_pwd },
 { 0 }
 };
 
@@ -526,4 +529,11 @@ do_cd(int argc, const char **argv)
 {
 	if (ftp_send_cmd(NULL, "CWD %s", argv[1]) != POSITIVE_OK)
 		fprintf(stderr, "failed to change directory\n");
+}
+
+static void
+do_pwd(int argc, const char **argv)
+{
+	if (ftp_send_cmd(NULL, "PWD") != POSITIVE_OK)
+		fprintf(stderr, "failed to print working directory\n");
 }
