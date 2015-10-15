@@ -521,7 +521,14 @@ do_help(int argc, const char **argv)
 {
 	struct cmdtab	*c;
 
-	/* XXX if argc == 1 list commands */
+	if (argc == 1) {
+		fprintf(stderr, "Commands are:\n");
+		for (c = cmdtab; c->command; c++)
+			fprintf(stderr, "%s\n", c->name);
+
+		return;
+	}
+		
 	for (c = cmdtab; c->command; c++)
 		if (strcasecmp(argv[1], c->name) == 0)
 			break;
