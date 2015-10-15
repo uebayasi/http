@@ -475,8 +475,8 @@ do_open(int argc, const char **argv)
 		return;
 	}
 
-	if (argv[2] && strlcpy(url.port, argv[2],
-	    sizeof url.port) >= sizeof url.port) {
+	if (argv[2] &&
+	    strlcpy(url.port, argv[2], sizeof url.port) >= sizeof url.port) {
 		fprintf(stderr, "port too long\n");
 		return;
 	}
