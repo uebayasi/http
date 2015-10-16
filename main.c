@@ -100,8 +100,8 @@ main(int argc, char *argv[])
 	paths[3] = output;
 #endif
 
-	if (tame("dns inet stdio tty cpath wpath", paths) != 0)
-		err(1, "tame");
+	if (pledge("dns inet stdio tty cpath rpath wpath", NULL) != 0)
+		err(1, "pledge");
 
 #ifndef SMALL
 	if (argc == 0)
