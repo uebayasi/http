@@ -98,19 +98,15 @@ http_get(const char *fn, off_t offset, struct url *url, struct http_hdrs *hdrs)
 	    url->basic_auth[0] ? url->basic_auth : "");
 	res = http_response(http_fp, hdrs);
 	if (res != 200 && res != 206)
-		goto err;
+		fclose(http_fp);
 
-	/* Expected a partial content but got full content */
-	if (offset && (res == 200)) {
-		offset = 0;
-		if (truncate(fn, 0) == -1)
-			err(1, "%s: truncate", __func__);
-	}
-
-	retr_file(http_fp, fn, hdrs->c_len + offset, offset);
-err:
-	fclose(http_fp);
 	return res;
+}
+
+void
+http_retr(const char *fn, off_t file_sz, off_t offset)
+{
+	retr_file(http_fp, fn, file_sz, offset);
 }
 
 static int

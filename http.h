@@ -42,6 +42,7 @@ int	 http_connect(struct url *, struct url *);
 char	*http_parseln(FILE *, size_t *);
 int	 proxy_connect(FILE *, struct url *, struct url *);
 int	 http_get(const char *, off_t, struct url *, struct http_hdrs *);
+void	 http_retr(const char *, off_t, off_t);
 
 /* util.c */
 extern int	 ftp_debug;
@@ -68,10 +69,12 @@ extern char	*tls_options;
 /* https.c */
 int	https_connect(struct url *, struct url *);
 int	https_get(const char *, off_t, struct url *, struct http_hdrs *);
+void	https_retr(const char *, off_t, off_t);
 
 /* ftp.c */
 int	ftp_connect(struct url *, struct url *);
 int	ftp_get(const char *, off_t, struct url *);
 void	ftp_command(void);
+void	ftp_retr(const char *, off_t);
 #endif
 

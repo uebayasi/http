@@ -38,9 +38,10 @@ static int		 handle_args(int, char **);
 static const char	*output_filename(struct url *);
 static struct url	*proxy_getenv(void);
 static int		 url_connect(struct url *, struct url *);
-static int		 url_get(struct url *, const char *,
+static int		 url_get(struct url *, off_t, const char *, 
 			     struct http_hdrs *);
 static void		 url_parse(const char *, struct url *);
+static void		 url_retr(int, const char *, off_t, off_t);
 static void		 usage(void);
 
 #ifndef SMALL
@@ -100,7 +101,7 @@ main(int argc, char *argv[])
 	paths[3] = output;
 #endif
 
-	if (pledge("dns inet stdio tty cpath rpath wpath", NULL) != 0)
+	if (pledge("dns inet stdio tty cpath rpath wpath abort", NULL) != 0)
 		err(1, "pledge");
 
 #ifndef SMALL
@@ -136,10 +137,12 @@ proxy_getenv(void)
 static int
 handle_args(int argc, char *argv[])
 {
-	struct url		*proxy, url;
+	struct stat		 sb;
 	struct http_hdrs	 res_hdrs;
+	struct url		*proxy, url;
 	const char		*fn = NULL;
 	char			*url_str;
+	off_t			 offset;
 	int			 code, i, redirects = 0;
 
 	proxy = proxy_getenv();
@@ -157,10 +160,22 @@ redirected:
 
 		log_request(&url, proxy);
 		memset(&res_hdrs, 0, sizeof(res_hdrs));
-		code = url_get(&url, fn, &res_hdrs);
+
+		offset = 0;
+		if (resume && strcmp(fn, "-") && stat(fn, &sb) == 0)
+			offset = sb.st_size;
+
+		code = url_get(&url, offset, fn, &res_hdrs);
 		switch (code) {
 		case 200:	/* OK */
-		case 206:	/* Partial Content */
+			/* Expected partial content but got full content */
+			if (offset) {
+				offset = 0;
+				if (truncate(fn, 0) == -1)
+					err(1, "%s: truncate", __func__);
+			}
+			break;
+		case 206:
 			break;
 		case 301:	/* Move Permanently */
 		case 302:	/* Found */
@@ -180,13 +195,14 @@ redirected:
 		case 416:	/* Range not Satisfiable */
 			/* Ideally should check Content-Range header */
 			warnx("File is already fully retrieved");
-			break;
+			continue;
 		case -1:
 			return 1;
 		default:
 			errx(1, "Error retrieving file: %s", http_errstr(code));
 		}
 
+		url_retr(url.scheme, fn, res_hdrs.c_len + offset, offset);
 		free(url.path);
 		redirects = 0;
 		fn = NULL;
@@ -255,15 +271,9 @@ url_connect(struct url *url, struct url *proxy)
 }
 
 static int
-url_get(struct url *url, const char *fn, struct http_hdrs *hdrs)
+url_get(struct url *url, off_t offset, const char *fn, struct http_hdrs *hdrs)
 {
-	struct stat	sb;
-	off_t		offset;
-	int		ret;
-
-	offset = 0;
-	if (resume && strcmp(fn, "-") && stat(fn, &sb) == 0)
-		offset = sb.st_size;
+	int	ret;
 
 	switch (url->scheme) {
 	case HTTP:
@@ -282,6 +292,26 @@ url_get(struct url *url, const char *fn, struct http_hdrs *hdrs)
 	}
 
 	return ret;
+}
+
+static void
+url_retr(int scheme, const char *fn, off_t file_sz, off_t offset)
+{
+	switch (scheme) {
+	case HTTP:
+		http_retr(fn, file_sz, offset);
+		break;
+#ifndef SMALL
+	case HTTPS:
+		https_retr(fn, file_sz, offset);
+		break;
+	case FTP:
+		ftp_retr(fn, offset);
+		break;
+#endif 
+	default:
+		errx(1, "%s: Invalid scheme", __func__);
+	}
 }
 
 void

@@ -66,7 +66,6 @@ static void			 https_vprintf(struct tls *, const char *, ...)
 				    __attribute__((__nonnull__ (2)));
 static char			*https_parseln(size_t *);
 static int			 https_response(struct http_hdrs *);
-static void			 https_retr_file(const char *, off_t, off_t);
 
 static struct tls	*ctx;
 char * const		 tls_verify_opts[] = {
@@ -211,28 +210,19 @@ https_get(const char *fn, off_t offset, struct url *url, struct http_hdrs *hdrs)
 	    url->basic_auth[0] ? "Authorization: Basic " : "",
 	    url->basic_auth[0] ? url->basic_auth : "");
 	res = https_response(hdrs);
-	if (res != 200 && res != 206)
-		goto err;
+	if (res != 200 && res != 206) {
+		while ((ret = tls_close(ctx)) != 0)
+			if (ret != TLS_WANT_POLLIN && ret != TLS_WANT_POLLOUT)
+				errx(1, "tls_close: %s", tls_error(ctx));
 
-	/* Expected a partial content but got full content */
-	if (offset && (res == 200)) {
-		offset = 0;
-		if (truncate(fn, 0) == -1)
-			err(1, "%s: truncate", __func__);
+		tls_free(ctx);
 	}
 
-	https_retr_file(fn, hdrs->c_len + offset, offset);
-err:
-	while ((ret = tls_close(ctx)) != 0)
-		if (ret != TLS_WANT_POLLIN && ret != TLS_WANT_POLLOUT)
-			errx(1, "%s: tls_close: %s", __func__, tls_error(ctx));
-
-	tls_free(ctx);
 	return res;
 }
 
-static void
-https_retr_file(const char *fn, off_t file_sz, off_t offset)
+void
+https_retr(const char *fn, off_t file_sz, off_t offset)
 {
 	size_t		 wlen;
 	ssize_t		 i, r;

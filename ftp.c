@@ -118,10 +118,8 @@ err:
 int
 ftp_get(const char *fn, off_t offset, struct url *url)
 {
-	FILE		*data_fp;
 	char		*dir, *file;
-	off_t		 file_sz;
-	int		 code, data_sock, ret = -1;
+	int		 code, ret = -1;
 
 	log_info("Using binary mode to transfer files.");
 	if (ftp_send_cmd(NULL, "TYPE I") != POSITIVE_OK)
@@ -138,38 +136,46 @@ ftp_get(const char *fn, off_t offset, struct url *url)
 	if (dir && ftp_send_cmd(NULL, "CWD %s", dir) != POSITIVE_OK)
 		goto err;
 
-	if (ftp_size(file, &file_sz) != POSITIVE_OK) {
-		log_info("failed to get size of file %s", file);
-		goto err;
+	ret = 200;
+	if (offset) {
+		code = ftp_send_cmd(NULL, "REST %lld", offset);
+		if (code != POSITIVE_OK && code != POSITIVE_INTER) {
+			if (truncate(fn, 0) == -1)
+				err(1, "%s: truncate", __func__);
+		} else
+			ret = 206;
 	}
+err:
+	return ret;
+}
+
+void
+ftp_retr(const char *fn, off_t offset)
+{
+	FILE	*data_fp;
+	off_t	 file_sz;
+	int	 data_sock;
+
+	if (ftp_size(fn, &file_sz) != POSITIVE_OK)
+		errx(1, "%s: failed to get size of file %s", __func__, fn);
 
 	if ((data_sock = ftp_pasv()) == -1)
-		goto err;
+		errx(1, "%s: error retrieving file %s", __func__, fn);
 
 	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	if (offset) {
-		code = ftp_send_cmd(NULL, "REST %lld", offset);
-		if (code != POSITIVE_OK && code != POSITIVE_INTER) {
-			offset = 0;
-			if (truncate(fn, 0) == -1)
-				err(1, "%s: truncate", __func__);
-		}
-	}
-
-	if (ftp_send_cmd(NULL, "RETR %s", file) != POSITIVE_PRE) {
+	if (ftp_send_cmd(NULL, "RETR %s", fn) != POSITIVE_PRE) {
 		fclose(data_fp);
-		goto err;
+		return;
 	}
 
 	retr_file(data_fp, fn, file_sz, offset);
 	fclose(data_fp);
-	if ((ret = ftp_response(NULL)) != POSITIVE_OK)
-		ret = -1;
-err:
+	if (ftp_response(NULL) != POSITIVE_OK)
+		errx(1, "%s: error retrieving file %s", __func__, fn);
+
 	(void)ftp_send_cmd(NULL, "QUIT");
-	return ret;
 }
 
 static int
