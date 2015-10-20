@@ -116,10 +116,10 @@ err:
 }
 
 int
-ftp_get(const char *fn, off_t offset, struct url *url)
+ftp_get(off_t offset, struct url *url)
 {
 	char		*dir, *file;
-	int		 code, ret = -1;
+	int		 ret = -1;
 
 	log_info("Using binary mode to transfer files.");
 	if (ftp_send_cmd(NULL, "TYPE I") != POSITIVE_OK)
@@ -137,14 +137,8 @@ ftp_get(const char *fn, off_t offset, struct url *url)
 		goto err;
 
 	ret = 200;
-	if (offset) {
-		code = ftp_send_cmd(NULL, "REST %lld", offset);
-		if (code != POSITIVE_OK && code != POSITIVE_INTER) {
-			if (truncate(fn, 0) == -1)
-				err(1, "%s: truncate", __func__);
-		} else
-			ret = 206;
-	}
+	if (offset && ftp_send_cmd(NULL, "REST %lld", offset) == POSITIVE_OK)
+		ret = 206;
 err:
 	return ret;
 }

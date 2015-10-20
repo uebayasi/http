@@ -190,7 +190,7 @@ https_connect(struct url *url, struct url *proxy)
 }
 
 int
-https_get(const char *fn, off_t offset, struct url *url, struct http_hdrs *hdrs)
+https_get(off_t offset, struct url *url, struct http_hdrs *hdrs)
 {
 	char	range[BUFSIZ];
 	int	res, ret;

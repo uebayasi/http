@@ -38,8 +38,7 @@ static int		 handle_args(int, char **);
 static const char	*output_filename(struct url *);
 static struct url	*proxy_getenv(void);
 static int		 url_connect(struct url *, struct url *);
-static int		 url_get(struct url *, off_t, const char *, 
-			     struct http_hdrs *);
+static int		 url_get(struct url *, off_t, struct http_hdrs *);
 static void		 url_parse(const char *, struct url *);
 static void		 url_retr(int, const char *, off_t, off_t);
 static void		 usage(void);
@@ -154,7 +153,7 @@ redirected:
 		if (resume && strcmp(fn, "-") && stat(fn, &sb) == 0)
 			offset = sb.st_size;
 
-		code = url_get(&url, offset, fn, &res_hdrs);
+		code = url_get(&url, offset, &res_hdrs);
 		switch (code) {
 		case 200:	/* OK */
 			/* Expected partial content but got full content */
@@ -260,20 +259,20 @@ url_connect(struct url *url, struct url *proxy)
 }
 
 static int
-url_get(struct url *url, off_t offset, const char *fn, struct http_hdrs *hdrs)
+url_get(struct url *url, off_t offset, struct http_hdrs *hdrs)
 {
 	int	ret;
 
 	switch (url->scheme) {
 	case HTTP:
-		ret = http_get(fn, offset, url, hdrs);
+		ret = http_get(offset, url, hdrs);
 		break;
 #ifndef SMALL
 	case HTTPS:
-		ret = https_get(fn, offset, url, hdrs);
+		ret = https_get(offset, url, hdrs);
 		break;
 	case FTP:
-		ret = ftp_get(fn, offset, url);
+		ret = ftp_get(offset, url);
 		break;
 #endif
 	default:

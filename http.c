@@ -78,7 +78,7 @@ proxy_connect(FILE *fp, struct url *url, struct url *proxy)
 }
 
 int
-http_get(const char *fn, off_t offset, struct url *url, struct http_hdrs *hdrs)
+http_get(off_t offset, struct url *url, struct http_hdrs *hdrs)
 {
 	char	range[BUFSIZ];
 	int	res;
