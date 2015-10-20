@@ -56,9 +56,7 @@ static int		 resume;
 int
 main(int argc, char *argv[])
 {
-	const char	*paths[5] = { "/usr/share/misc/", ".",
-				      "/etc/ssl", NULL, NULL };
-	int		 ch;
+	int	ch;
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
@@ -90,23 +88,14 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	ftp_debug = getenv("FTP_DEBUG") != NULL;
-
-#ifdef SMALL
-	/*
-	 * "/etc/ssl" needn't be whitelisted for SMALL variant
-	 * since we disable HTTPS support.
-	 */
-	paths[2] = output;
-#else
-	paths[3] = output;
-#endif
-
 	if (pledge("dns inet stdio tty cpath rpath wpath abort", NULL) != 0)
 		err(1, "pledge");
 
 #ifndef SMALL
 	if (argc == 0)
 		ftp_command();
+#else
+	usage();
 #endif
 
 	return handle_args(argc, argv);
