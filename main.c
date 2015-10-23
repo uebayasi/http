@@ -57,6 +57,9 @@ main(int argc, char *argv[])
 {
 	int	ch;
 
+	if (pledge("dns inet stdio tty cpath rpath wpath abort", NULL) != 0)
+		err(1, "pledge");
+
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
 		case 'C':
@@ -87,8 +90,6 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	ftp_debug = getenv("FTP_DEBUG") != NULL;
-	if (pledge("dns inet stdio tty cpath rpath wpath abort", NULL) != 0)
-		err(1, "pledge");
 
 #ifndef SMALL
 	if (argc == 0)
