@@ -104,9 +104,9 @@ http_get(off_t offset, struct url *url, struct http_hdrs *hdrs)
 }
 
 void
-http_retr(const char *fn, off_t file_sz, off_t offset)
+http_retr(int fd, off_t file_sz, off_t offset)
 {
-	retr_file(http_fp, fn, file_sz, offset);
+	retr_file(http_fp, fd, file_sz, offset);
 }
 
 static int

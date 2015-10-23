@@ -222,28 +222,18 @@ https_get(off_t offset, struct url *url, struct http_hdrs *hdrs)
 }
 
 void
-https_retr(const char *fn, off_t file_sz, off_t offset)
+https_retr(int fd, off_t file_sz, off_t offset)
 {
 	size_t		 wlen;
 	ssize_t		 i, r;
 	char		*cp;
 	static char	*buf;
-	int		 fd, flags;
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
 		if (buf == NULL)
 			err(1, "%s: malloc", __func__);
 	}
-
-	flags = O_CREAT | O_WRONLY;
-	if (offset)
-		flags |= O_APPEND;
-
-	if (strcmp(fn, "-") == 0)
-		fd = STDOUT_FILENO;
-	else if ((fd = open(fn, flags, 0666)) == -1)
-		err(1, "%s: open %s", __func__, fn);
 
 	start_progress_meter(file_sz, &offset);
 	while (1) {
@@ -266,9 +256,6 @@ https_retr(const char *fn, off_t file_sz, off_t offset)
 				break;
 		}
 	}
-
-	if (strcmp(fn, "-") != 0)
-		close(fd);
 
 	stop_progress_meter();
 }

@@ -14,11 +14,17 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/queue.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <imsg.h>
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
@@ -30,17 +36,32 @@
 
 #include "http.h"
 
+struct ftp_msg {
+	off_t	offset;
+	int	idx;
+};
+
+struct ftp_ack {
+	int	code;
+	int	idx;
+};
+
 #define USER_AGENT	"OpenBSD http"
 #define MAX_REDIRECTS	10
 
 static char		*absolute_url(char *, struct url *);
+static void		 child(int, pid_t, int, char **);
+static int		 download(int, struct ftp_msg *, struct url *,
+			    int, char **);
 static int		 handle_args(int, char **);
-static const char	*output_filename(struct url *);
+static const char	*output_filename(const char *);
 static struct url	*proxy_getenv(void);
+static int		 read_message(struct imsgbuf *, struct imsg *, pid_t);
+static void		 send_message(struct imsgbuf *, void *, size_t, int);
 static int		 url_connect(struct url *, struct url *);
 static int		 url_get(struct url *, off_t, struct http_hdrs *);
 static void		 url_parse(const char *, struct url *);
-static void		 url_retr(int, const char *, off_t, off_t);
+static void		 url_retr(int, int, off_t, off_t);
 static void		 usage(void);
 
 #ifndef SMALL
@@ -57,8 +78,9 @@ main(int argc, char *argv[])
 {
 	int	ch;
 
-	if (pledge("dns inet stdio tty cpath rpath wpath abort", NULL) != 0)
-		err(1, "pledge");
+	if (pledge("dns inet stdio tty cpath rpath wpath "
+	    "sendfd recvfd proc", NULL) == -1)
+		err(1, "%s: pledge", __func__);
 
 	while ((ch = getopt(argc, argv, "Co:P:S:U:V")) != -1) {
 		switch (ch) {
@@ -92,8 +114,12 @@ main(int argc, char *argv[])
 	ftp_debug = getenv("FTP_DEBUG") != NULL;
 
 #ifndef SMALL
-	if (argc == 0)
+	if (argc == 0) {
+		if (pledge("dns inet stdio tty cpath rpath wpath", NULL) == -1)
+			err(1, "%s: pledge", __func__);
+
 		ftp_command();
+	}
 #else
 	usage();
 #endif
@@ -124,95 +150,222 @@ proxy_getenv(void)
 }
 
 static int
-handle_args(int argc, char *argv[])
+handle_args(int argc, char **argv)
 {
-	struct stat		 sb;
-	struct http_hdrs	 res_hdrs;
-	struct url		*proxy, url;
-	const char		*fn = NULL;
-	char			*url_str;
-	off_t			 offset;
-	int			 code, i, redirects = 0;
+	struct stat	 sb;
+	struct imsgbuf	 ibuf;
+	struct imsg	 imsg;
+	struct ftp_msg	 msg;
+	struct ftp_ack	*ack;
+	pid_t		 pid, parent;
+	const char	*fn;
+	int		 i, fd, flags, pair[2];
 
-	proxy = proxy_getenv();
+	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, pair) != 0)
+		err(1, "socketpair");
+
+	parent = getpid();
+	switch (pid = fork()) {
+	case -1:
+		err(1, "fork");
+	case 0:
+		close(pair[0]);
+		child(pair[1], parent, argc, argv);
+	}
+
+	close(pair[1]);
+	if (pledge("stdio cpath rpath wpath sendfd", NULL) == -1)
+		err(1, "%s: pledge", __func__);
+
+	imsg_init(&ibuf, pair[0]);
 	for (i = 0; i < argc; i++) {
-redirected:
-		url_str = url_encode(argv[i]);
-		url_parse(url_str, &url);
-		free(url_str);
-		/* evaluate fn just once in case of redirects */
-		if (fn == NULL)
-			fn = output_filename(&url);
-
-		if (url_connect(&url, proxy) == -1)
-			return 1;
-
-		log_request(&url, proxy);
-		memset(&res_hdrs, 0, sizeof(res_hdrs));
-
-		offset = 0;
-		if (resume && strcmp(fn, "-") && stat(fn, &sb) == 0)
-			offset = sb.st_size;
-
-		code = url_get(&url, offset, &res_hdrs);
-		switch (code) {
-		case 200:	/* OK */
-			/* Expected partial content but got full content */
-			if (offset) {
-				offset = 0;
-				if (truncate(fn, 0) == -1)
-					err(1, "%s: truncate", __func__);
-			}
-			break;
-		case 206:
-			break;
-		case 301:	/* Move Permanently */
-		case 302:	/* Found */
-		case 303:	/* See Other */
-		case 307:	/* Temporary Redirect */
-			if (++redirects > MAX_REDIRECTS)
-				errx(1, "Too many redirections requested");
-
-			/* Relative redirects to absolute URL */
-			if (res_hdrs.location[0] == '/')
-				argv[i] = absolute_url(res_hdrs.location, &url);
-			else
-				argv[i] = res_hdrs.location;
-
-			log_info("Redirected to %s", res_hdrs.location);
-			goto redirected;
-		case 416:	/* Range not Satisfiable */
-			/* Ideally should check Content-Range header */
-			warnx("File is already fully retrieved");
-			continue;
-		case -1:
-			return 1;
-		default:
-			errx(1, "Error retrieving file: %s", http_errstr(code));
+		memset(&msg, 0, sizeof msg);
+		msg.idx = i;
+		flags = O_CREAT | O_WRONLY;
+		fn = output_filename(argv[i]);
+		if (resume && strcmp(fn, "-") && stat(fn, &sb) == 0) {
+			msg.offset = sb.st_size;
+			flags |= O_APPEND;
 		}
 
-		url_retr(url.scheme, fn, res_hdrs.c_len + offset, offset);
-		free(url.path);
-		redirects = 0;
-		fn = NULL;
+		if (strcmp(fn, "-") == 0)
+			fd = STDOUT_FILENO;
+		else if ((fd = open(fn, flags, 0666)) == -1)
+			err(1, "%s: open %s", __func__, fn);
+
+		send_message(&ibuf, &msg, sizeof msg, fd);
+		if (read_message(&ibuf, &imsg, pid) == 0)
+			break;
+
+		if (imsg.hdr.len != IMSG_HEADER_SIZE + sizeof *ack)
+			errx(1, "message too small");
+
+		ack = imsg.data;
+		if (ack->idx != i)
+			errx(1, "index mismatch");
+
+		if (ack->code != 200 && ack->code != 206) {
+			errx(1, "Error retrieving file: %s",
+			    http_errstr(ack->code));
+		}
+			
+		close(fd);
+		imsg_free(&imsg);
 	}
+
+	close(pair[0]);
+	while (wait(NULL) == -1 && errno != ECHILD)
+		if (errno != EINTR)
+			err(1, "wait");
 
 	return 0;
 }
 
-static const char *
-output_filename(struct url *url)
+static void
+child(int fd, pid_t parent, int argc, char **argv)
 {
-	const char	*fn = NULL;
+	struct imsgbuf	 ibuf;
+	struct imsg	 imsg;
+	struct ftp_msg	*msg;
+	struct ftp_ack	 ack;
+	struct url	*proxy;
+
+	proxy = proxy_getenv();
+	if (pledge("dns inet stdio tty recvfd", NULL) == -1)
+		err(1, "%s: pledge", __func__);
+
+	imsg_init(&ibuf, fd);
+	for (;;) {
+		if (read_message(&ibuf, &imsg, parent) == 0)
+			break;
+
+		if (imsg.hdr.len != IMSG_HEADER_SIZE + sizeof *msg)
+			errx(1, "message too small");
+
+		if (imsg.fd == -1)
+			errx(1, "%s: expected a file descriptor", __func__);
+
+		msg = imsg.data;
+		memset(&ack, 0, sizeof ack);
+		ack.idx = msg->idx;
+		ack.code = download(imsg.fd, msg, proxy, argc, argv);
+		imsg_free(&imsg);
+		send_message(&ibuf, &ack, sizeof ack, -1);
+	}
+
+	exit(0);
+}
+
+static int
+download(int fd, struct ftp_msg *msg, struct url *proxy, int argc, char **argv)
+{
+	struct http_hdrs	 res_hdrs;
+	struct url		 url;
+	char			*url_str;
+	off_t			 offset = msg->offset;
+	int			 code = -1, idx = msg->idx, redirects = 0;
+
+redirected:
+	url_str = url_encode(argv[idx]);
+	url_parse(url_str, &url);
+	free(url_str);
+	if (url_connect(&url, proxy) == -1)
+		return -1;
+
+	log_request(&url, proxy);
+	memset(&res_hdrs, 0, sizeof(res_hdrs));
+	code = url_get(&url, offset, &res_hdrs);
+	switch (code) {
+	case 200:	/* OK */
+		/* Expected partial content but got full content */
+		if (offset) {
+			offset = 0;
+			if (ftruncate(fd, 0) == -1)
+				err(1, "%s: ftruncate", __func__);
+		}
+		break;
+	case 206:
+		break;
+	case 301:	/* Move Permanently */
+	case 302:	/* Found */
+	case 303:	/* See Other */
+	case 307:	/* Temporary Redirect */
+		if (++redirects > MAX_REDIRECTS)
+			errx(1, "Too many redirections requested");
+
+		/* Relative redirects to absolute URL */
+		if (res_hdrs.location[0] == '/')
+			argv[idx] = absolute_url(res_hdrs.location, &url);
+		else
+			argv[idx] = res_hdrs.location;
+
+		log_info("Redirected to %s", res_hdrs.location);
+		goto redirected;
+	case 416:	/* Range not Satisfiable */
+		/* Ideally should check Content-Range header */
+		warnx("File is already fully retrieved");
+		return 200;
+	default:
+		return code;
+	}
+
+	url_retr(fd, url.scheme, res_hdrs.c_len + offset, offset);
+	free(url.path);
+	return code;
+}
+
+static void
+send_message(struct imsgbuf *ibuf, void *msg, size_t msglen, int fd)
+{
+	if (imsg_compose(ibuf, -1, -1, 0, fd, msg, msglen) != 1)
+		err(1, "imsg_compose");
+	if (imsg_flush(ibuf) != 0)
+		err(1, "imsg_flush");
+}
+
+static int
+read_message(struct imsgbuf *ibuf, struct imsg *imsg, pid_t from)
+{
+	int	n;
+
+	if ((n = imsg_read(ibuf)) == -1)
+		err(1, "imsg_read");
+	if (n == 0)
+		return (0);
+
+	if ((n = imsg_get(ibuf, imsg)) == -1)
+		err(1, "imsg_get");
+	if (n == 0)
+		return (0);
+
+	if ((pid_t)imsg->hdr.pid != from)
+		errx(1, "PIDs don't match");
+
+	return (n);
+
+}
+
+static const char *
+output_filename(const char *url_str)
+{
+	const char	*fn, *p;
+	int		scheme = 0;
 
 	if (output)
 		return output;
 
-	if (url->path && (fn = strrchr(url->path, '/')) != NULL)
+	if ((p = strstr(url_str, "://")) != NULL) {
+		if (strncasecmp(url_str, "ftp://", 6) == 0)
+			scheme = FTP;
+
+		url_str = p + 3;
+	}
+
+	if ((fn = strrchr(url_str, '/')) != NULL)
 		fn++;
 
-	if (url->scheme != FTP && (fn == NULL || fn[0] == '\0'))
-		errx(1, "No filename after host (use -o): %s", url->host);
+	if (scheme != FTP && (fn == NULL || fn[0] == '\0'))
+		errx(1, "No filename after host (use -o): %s", url_str);
 
 	return fn;
 }
@@ -284,18 +437,18 @@ url_get(struct url *url, off_t offset, struct http_hdrs *hdrs)
 }
 
 static void
-url_retr(int scheme, const char *fn, off_t file_sz, off_t offset)
+url_retr(int fd, int scheme, off_t file_sz, off_t offset)
 {
 	switch (scheme) {
 	case HTTP:
-		http_retr(fn, file_sz, offset);
+		http_retr(fd, file_sz, offset);
 		break;
 #ifndef SMALL
 	case HTTPS:
-		https_retr(fn, file_sz, offset);
+		https_retr(fd, file_sz, offset);
 		break;
 	case FTP:
-		ftp_retr(fn, offset);
+		ftp_retr(fd, offset);
 		break;
 #endif 
 	default:

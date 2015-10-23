@@ -214,28 +214,18 @@ header_insert(struct http_hdrs *hdrs, const char *buf)
 }
 
 void
-retr_file(FILE *fp, const char *fn, off_t file_sz, off_t offset)
+retr_file(FILE *fp, int fd, off_t file_sz, off_t offset)
 {
 	size_t		 r, wlen;
 	ssize_t		 i;
 	char		*cp;
 	static char	*buf;
-	int		 fd, flags;
 
 	if (buf == NULL) {
 		buf = malloc(TMPBUF_LEN); /* allocate once */
 		if (buf == NULL)
 			err(1, "%s: malloc", __func__);
 	}
-
-	flags = O_CREAT | O_WRONLY;
-	if (offset)
-		flags |= O_APPEND;
-
-	if (strcmp(fn, "-") == 0)
-		fd = STDOUT_FILENO;
-	else if ((fd = open(fn, flags, 0666)) == -1)
-		err(1, "%s: open %s", __func__, fn);
 
 	start_progress_meter(file_sz, &offset);
 	while ((r = fread(buf, sizeof(char), TMPBUF_LEN, fp)) > 0) {
@@ -252,9 +242,6 @@ retr_file(FILE *fp, const char *fn, off_t file_sz, off_t offset)
 	}
 	if (ferror(fp))
 		err(1, "%s: fread", __func__);
-
-	if (strcmp(fn, "-") != 0)
-		close(fd);
 
 	stop_progress_meter();
 }

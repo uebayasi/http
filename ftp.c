@@ -53,7 +53,7 @@ static int	 ftp_response(char **);
 static int	 ftp_send_cmd(char **, const char *fmt, ...)
 		    __attribute__((__format__ (printf, 2, 3)))
 		    __attribute__((__nonnull__ (2)));
-static int	 ftp_size(const char *, off_t *);
+static int	 ftp_size(off_t *);
 
 struct cmdtab {
 	int		  command;
@@ -68,6 +68,7 @@ struct cmdtab {
 };
 
 static FILE	*ctrl_fp;
+static char	*file;
 
 int
 ftp_connect(struct url *url, struct url *proxy)
@@ -99,6 +100,12 @@ ftp_connect(struct url *url, struct url *proxy)
 		goto err;
 	}
 
+/* 
+ * With pledge(2) in place we can no longer intermix *URL Mode* with
+ * command interpreter mode. Interpreter can now only be started with
+ * argc == 1 and url scheme is FTP.
+ */
+#if 0
 	if (url->path == NULL || strcmp(url->path, "/") == 0)
 		ftp_command();
 	else if (url->path[strlen(url->path) - 1] == '/') {
@@ -107,6 +114,7 @@ ftp_connect(struct url *url, struct url *proxy)
 
 		ftp_command();
 	}
+#endif
 
 	return ctrl_sock;
 err:
@@ -118,7 +126,7 @@ err:
 int
 ftp_get(off_t offset, struct url *url)
 {
-	char		*dir, *file;
+	char		*dir;
 	int		 ret = -1;
 
 	log_info("Using binary mode to transfer files.");
@@ -144,36 +152,36 @@ err:
 }
 
 void
-ftp_retr(const char *fn, off_t offset)
+ftp_retr(int fd, off_t offset)
 {
 	FILE	*data_fp;
 	off_t	 file_sz;
 	int	 data_sock;
 
-	if (ftp_size(fn, &file_sz) != POSITIVE_OK)
-		errx(1, "%s: failed to get size of file %s", __func__, fn);
+	if (ftp_size(&file_sz) != POSITIVE_OK)
+		errx(1, "%s: failed to get size of file %s", __func__, file);
 
 	if ((data_sock = ftp_pasv()) == -1)
-		errx(1, "%s: error retrieving file %s", __func__, fn);
+		errx(1, "%s: error retrieving file %s", __func__, file);
 
 	if ((data_fp = fdopen(data_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	if (ftp_send_cmd(NULL, "RETR %s", fn) != POSITIVE_PRE) {
+	if (ftp_send_cmd(NULL, "RETR %s", file) != POSITIVE_PRE) {
 		fclose(data_fp);
 		return;
 	}
 
-	retr_file(data_fp, fn, file_sz, offset);
+	retr_file(data_fp, fd, file_sz, offset);
 	fclose(data_fp);
 	if (ftp_response(NULL) != POSITIVE_OK)
-		errx(1, "%s: error retrieving file %s", __func__, fn);
+		errx(1, "%s: error retrieving file %s", __func__, file);
 
 	(void)ftp_send_cmd(NULL, "QUIT");
 }
 
 static int
-ftp_size(const char *fn, off_t *sizep)
+ftp_size(off_t *sizep)
 {
 	char		*buf, *s;
 	const char	*errstr;
@@ -182,7 +190,7 @@ ftp_size(const char *fn, off_t *sizep)
 
 	old_verbose = verbose;
 	verbose = 0;
-	code = ftp_send_cmd(&buf, "SIZE %s", fn);
+	code = ftp_send_cmd(&buf, "SIZE %s", file);
 	verbose = old_verbose;
 	if (code != POSITIVE_OK)
 		return code;
