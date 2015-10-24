@@ -58,7 +58,6 @@ static int		 read_message(struct imsgbuf *, struct imsg *, pid_t);
 static void		 send_message(struct imsgbuf *, void *, size_t, int);
 static int		 url_connect(struct url *);
 static int		 url_get(struct url *, off_t, struct http_hdrs *);
-static void		 url_parse(const char *, struct url *);
 static void		 url_retr(int, int, off_t, off_t);
 static void		 usage(void);
 

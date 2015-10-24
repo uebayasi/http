@@ -73,7 +73,7 @@ static char	*file;
 int
 ftp_connect(struct url *url)
 {
-	int		 ctrl_sock;
+	int	ctrl_sock;
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "21", sizeof url->port);
@@ -107,8 +107,8 @@ err:
 int
 ftp_get(off_t offset, struct url *url)
 {
-	char		*dir;
-	int		 ret = -1;
+	char	*dir;
+	int	 ret = -1;
 
 	log_info("Using binary mode to transfer files.");
 	if (ftp_send_cmd(NULL, "TYPE I") != POSITIVE_OK)
@@ -379,7 +379,7 @@ ftp_command(void)
 	tok_reset(tok);
 	while (1) {
 		if ((buf = el_gets(el, &len)) == NULL || len == 0) {
-			printf("\n");
+			fprintf(stderr, "\n");
 			break;
 		}
 
@@ -391,7 +391,7 @@ ftp_command(void)
 		tok_reset(tok);
 		if (exec_cmd(argc, argv) != 0)
 			if (el_parse(el, argc, argv) != 0)
-				printf("?Invalid command.\n");
+				fprintf(stderr, "?Invalid command.\n");
 	}
 
 	history_end(hist);
@@ -416,7 +416,7 @@ exec_cmd(int argc, const char **argv)
 		return 1;
 
 	if (c->conn && ctrl_fp == NULL)
-		printf("Not connected\n");
+		fprintf(stderr, "Not connected\n");
 	else
 		c->handler(argc, argv);
 
@@ -432,7 +432,18 @@ ftp_prompt(void)
 static void
 do_open(int argc, const char **argv)
 {
-	errx(1, "not yet");
+	struct url	 url;
+	char		*url_str;
+
+	if (ctrl_fp) {
+		fprintf(stderr, "Already connected, use close first\n");
+		return;
+	}
+
+	url_str = url_encode(argv[1]);
+	url_parse(url_str, &url);
+	free(url_str);
+	ftp_connect(&url);
 }
 
 static void
