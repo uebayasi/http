@@ -119,7 +119,8 @@ main(int argc, char *argv[])
 		ftp_command();
 	}
 #else
-	usage();
+	if (argc == 0)
+		usage();
 #endif
 
 	return handle_args(argc, argv);
