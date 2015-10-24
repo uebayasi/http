@@ -247,7 +247,7 @@ redirected:
 		return -1;
 
 	log_request(&url);
-	memset(&res_hdrs, 0, sizeof(res_hdrs));
+	memset(&res_hdrs, 0, sizeof res_hdrs);
 	code = url_get(&url, offset, &res_hdrs);
 	switch (code) {
 	case 200:	/* OK */
@@ -345,7 +345,7 @@ proxy_getenv(void)
 		errx(1, "Invalid proxy scheme: %s", proxy_str);
 
 	if (proxy->port[0] == '\0')
-		(void)strlcpy(proxy->port, "80", sizeof(proxy->port));
+		(void)strlcpy(proxy->port, "80", sizeof proxy->port);
 
 err:
 	return proxy;
@@ -382,13 +382,13 @@ absolute_url(char *url_str, struct url *orig_url)
 	static char	abs_url[BUFSIZ];
 	int		ret;
 
-	ret = snprintf(abs_url, sizeof(abs_url), "%s://%s:%s%s",
+	ret = snprintf(abs_url, sizeof abs_url, "%s://%s:%s%s",
 	    (orig_url->scheme == HTTP) ? "http" : "https",
 	    orig_url->host,
 	    orig_url->port,
 	    url_str);
 
-	if (ret == -1 || ret >= sizeof(abs_url))
+	if (ret == -1 || ret >= sizeof abs_url)
 		errx(1, "Cannot build redirect URL");
 
 	return abs_url;
@@ -467,7 +467,7 @@ url_parse(const char *url_str, struct url *url)
 {
 	char	*t;
 
-	memset(url, 0, sizeof(*url));
+	memset(url, 0, sizeof *url);
 	while (isblank((unsigned char)*url_str))
 		url_str++;
 
@@ -489,7 +489,7 @@ url_parse(const char *url_str, struct url *url)
 	/* Prepare Basic Auth of credentials if present */
 	if ((t = strchr(url_str, '@')) != NULL) {
 		if (b64_ntop((unsigned char *)url_str, t - url_str,
-		    url->basic_auth, sizeof(url->basic_auth)) == -1)
+		    url->basic_auth, sizeof url->basic_auth) == -1)
 			errx(1, "error in base64 encoding");
 
 		url_str = ++t;
@@ -506,19 +506,19 @@ url_parse(const char *url_str, struct url *url)
 	/* hostname and port */
 	if ((t = strchr(url_str, ':')) != NULL)	{
 		*t++ = '\0';
-		if (strlcpy(url->port, t, sizeof(url->port)) >=
-		    sizeof(url->port))
+		if (strlcpy(url->port, t, sizeof url->port) >=
+		    sizeof url->port)
 			errx(1, "%s: port too long", __func__);
 	}
 
-	if (strlcpy(url->host, url_str, sizeof(url->host)) >=
-	    sizeof(url->host))
+	if (strlcpy(url->host, url_str, sizeof url->host) >=
+	    sizeof url->host)
 		errx(1, "%s: hostname too long", __func__);
 
 	/* overwrite port with commandline argument if given */
 	if (url->scheme == FTP && port)
-		if (strlcpy(url->port, port, sizeof(url->port))
-		    >= sizeof(url->port))
+		if (strlcpy(url->port, port, sizeof url->port)
+		    >= sizeof url->port)
 			errx(1, "%s: port overflow: %s", __func__, port);
 }
 

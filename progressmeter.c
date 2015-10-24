@@ -186,7 +186,7 @@ refresh_progress_meter(void)
 	barlength = win_size - 30;
 	if (barlength > 0) {
 		i = barlength * percent / 100;
-		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+		snprintf(buf + strlen(buf), sizeof buf - strlen(buf),
 		    "|%.*s%*s| ", i,
 		    "*******************************************************"
 		    "*******************************************************"
@@ -303,7 +303,7 @@ stop_progress_meter(void)
 	if (!verbose)
 		return;
 
-	format_rate(rate_str, sizeof(rate_str), bytes_per_second);
+	format_rate(rate_str, sizeof rate_str, bytes_per_second);
 	elapsed = monotime() - start;
 	fprintf(stderr, "%lld bytes received in %.2f seconds %s%s%s%s\n",
 	    (end_pos) ? cur_pos : *counter,

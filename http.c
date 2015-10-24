@@ -37,7 +37,7 @@ http_connect(struct url *url)
 	int		 s;
 
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "80", sizeof(url->port));
+		(void)strlcpy(url->port, "80", sizeof url->port);
 
 	if ((s = tcp_connect(url->host, url->port)) == -1)
 		return -1;
@@ -80,7 +80,7 @@ http_get(off_t offset, struct url *url, struct http_hdrs *hdrs)
 	char	range[BUFSIZ];
 	int	res;
 
-	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
+	(void)snprintf(range, sizeof range, "Range: bytes=%lld-\r\n", offset);
 	send_cmd(http_fp,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"

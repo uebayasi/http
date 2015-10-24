@@ -76,7 +76,7 @@ ftp_connect(struct url *url)
 	int		 ctrl_sock;
 
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "21", sizeof(url->port));
+		(void)strlcpy(url->port, "21", sizeof url->port);
 
 	if ((ctrl_sock = tcp_connect(url->host, url->port)) == -1)
 		return -1;
@@ -224,8 +224,8 @@ ftp_pasv(void)
 	uint			 addr[4], port[2];
 	int			 code, old_verbose, sock, ret;
 
-	memset(&addr, 0, sizeof(addr));
-	memset(&port, 0, sizeof(port));
+	memset(&addr, 0, sizeof addr);
+	memset(&port, 0, sizeof port);
 	old_verbose = verbose;
 	verbose = 0;
 	code = ftp_send_cmd(&buf, "PASV");
@@ -251,7 +251,7 @@ ftp_pasv(void)
 	}
 
 	free(buf);
-	memset(&data_addr, 0, sizeof(data_addr));
+	memset(&data_addr, 0, sizeof data_addr);
 	data_addr.sin_family = AF_INET;
 	data_addr.sin_len = sizeof(struct sockaddr_in);
 	data_addr.sin_addr.s_addr = htonl(pack4(addr, 0));

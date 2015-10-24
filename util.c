@@ -81,7 +81,7 @@ tcp_connect(const char *host, const char *port)
 		port = proxy->port;
 	}
 
-	memset(&hints, 0, sizeof(hints));
+	memset(&hints, 0, sizeof hints);
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	error = getaddrinfo(host, port, &hints, &res0);
@@ -92,8 +92,8 @@ tcp_connect(const char *host, const char *port)
 
 	for (res = res0; res; res = res->ai_next) {
 		if (getnameinfo(res->ai_addr, res->ai_addrlen, hbuf,
-		    sizeof(hbuf), NULL, 0, NI_NUMERICHOST) != 0)
-			(void)strlcpy(hbuf, "(unknown)", sizeof(hbuf));
+		    sizeof hbuf, NULL, 0, NI_NUMERICHOST) != 0)
+			(void)strlcpy(hbuf, "(unknown)", sizeof hbuf);
 
 		log_info("Trying %s...", hbuf);
 		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -209,8 +209,8 @@ header_insert(struct http_hdrs *hdrs, const char *buf)
 	if (strncasecmp(buf, "Location: ", 10) == 0) {
 		buf = strchr(buf, ' ');
 		buf++;
-		sz = strlcpy(hdrs->location, buf, sizeof(hdrs->location));
-		if (sz >= sizeof(hdrs->location)) {
+		sz = strlcpy(hdrs->location, buf, sizeof hdrs->location);
+		if (sz >= sizeof hdrs->location) {
 			warnx("%s: Location overflow", __func__);
 			return -1;
 		}
@@ -433,7 +433,7 @@ http_errstr(int code)
 	case 505:
 		return "505 HTTP Version Not Supported";
 	default:
-		(void)snprintf(buf, sizeof(buf), "%d ???", code);
+		(void)snprintf(buf, sizeof buf, "%d ???", code);
 		return buf;
 	}
 }

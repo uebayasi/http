@@ -176,7 +176,7 @@ https_connect(struct url *url)
 	}
 
 	if (url->port[0] == '\0')
-		(void)strlcpy(url->port, "443", sizeof(url->port));
+		(void)strlcpy(url->port, "443", sizeof url->port);
 
 	if ((s = http_connect(url)) == -1)
 		return -1;
@@ -195,7 +195,7 @@ https_get(off_t offset, struct url *url, struct http_hdrs *hdrs)
 	char	range[BUFSIZ];
 	int	res, ret;
 
-	(void)snprintf(range, sizeof(range), "Range: bytes=%lld-\r\n", offset);
+	(void)snprintf(range, sizeof range, "Range: bytes=%lld-\r\n", offset);
 	https_vprintf(ctx,
 	    "GET %s HTTP/1.0\r\n"
 	    "Host: %s\r\n"
