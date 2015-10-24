@@ -215,7 +215,7 @@ child(int fd, pid_t parent, int argc, char **argv)
 	struct ftp_msg	*msg;
 	struct ftp_ack	 ack;
 
-	if (pledge("dns inet stdio tty recvfd", NULL) == -1)
+	if (pledge("dns inet stdio rpath tty recvfd", NULL) == -1)
 		err(1, "%s: pledge", __func__);
 
 	imsg_init(&ibuf, fd);
