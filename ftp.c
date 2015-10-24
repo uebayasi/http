@@ -97,22 +97,6 @@ ftp_connect(struct url *url)
 		goto err;
 	}
 
-/* 
- * With pledge(2) in place we can no longer intermix *URL Mode* with
- * command interpreter mode. Interpreter can now only be started with
- * argc == 1 and url scheme is FTP.
- */
-#if 0
-	if (url->path == NULL || strcmp(url->path, "/") == 0)
-		ftp_command();
-	else if (url->path[strlen(url->path) - 1] == '/') {
-		if (ftp_send_cmd(NULL, "CWD %s", url->path) != POSITIVE_OK)
-			goto err;
-
-		ftp_command();
-	}
-#endif
-
 	return ctrl_sock;
 err:
 	warnx("Can't connect or login to host `%s'", url->host);

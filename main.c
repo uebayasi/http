@@ -387,8 +387,8 @@ output_filename(const char *url_str)
 	if ((fn = strrchr(url_str, '/')) != NULL)
 		fn++;
 
-	if (scheme != FTP && (fn == NULL || fn[0] == '\0'))
-		errx(1, "No filename after host (use -o): %s", url_str);
+	if (fn == NULL || fn[0] == '\0')
+		errx(1, "No filename after host: %s", url_str);
 
 	return fn;
 }
