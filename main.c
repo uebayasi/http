@@ -181,6 +181,9 @@ handle_args(int argc, char **argv)
 			errx(1, "index mismatch");
 
 		if (ack->code != 200 && ack->code != 206) {
+			if (unlink(fn) == -1)
+				err(1, "unlink");
+
 			errx(1, "Error retrieving file: %s",
 			    http_errstr(ack->code));
 		}
