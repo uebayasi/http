@@ -73,13 +73,12 @@ static char	*file;
 int
 ftp_connect(struct url *url)
 {
-	const char	*host, *port;
 	int		 ctrl_sock;
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "21", sizeof(url->port));
 
-	if ((ctrl_sock = tcp_connect(host, port)) == -1)
+	if ((ctrl_sock = tcp_connect(url->host, url->port)) == -1)
 		return -1;
 
 	if ((ctrl_fp = fdopen(ctrl_sock, "r+")) == NULL)

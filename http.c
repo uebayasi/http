@@ -34,13 +34,12 @@ static FILE	*http_fp;
 int
 http_connect(struct url *url)
 {
-	const char	*host, *port;
 	int		 s;
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "80", sizeof(url->port));
 
-	if ((s = tcp_connect(host, port)) == -1)
+	if ((s = tcp_connect(url->host, url->port)) == -1)
 		return -1;
 
 	if ((http_fp = fdopen(s, "r+")) == NULL)
