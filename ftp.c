@@ -322,6 +322,7 @@ ftp_response(char **linep)
 		free(line);
 	}
 
+	log_info("%s", line);
 done:
 	free(buf);
 	/* line can never be NULL, but scan-build complains? */
