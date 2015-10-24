@@ -71,9 +71,15 @@ int
 tcp_connect(const char *host, const char *port)
 {
 	struct addrinfo	 hints, *res, *res0;
+	struct url	*proxy;
 	char		 hbuf[NI_MAXHOST];
 	const char	*cause = NULL;
 	int		 error, s = -1, save_errno;
+
+	if ((proxy = proxy_getenv())) {
+		host = proxy->host;
+		port = proxy->port;
+	}
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
@@ -322,10 +328,12 @@ log_info(const char *fmt, ...)
 }
 
 void
-log_request(struct url *url, struct url *proxy)
+log_request(struct url *url)
 {
-	int custom_port = 0;
+	struct url	*proxy;
+	int		 custom_port = 0;
 
+	proxy = proxy_getenv();
 	switch (url->scheme) {
 	case HTTP:
 		custom_port = strcmp(url->port, "80") ? 1 : 0;

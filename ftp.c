@@ -71,7 +71,7 @@ static FILE	*ctrl_fp;
 static char	*file;
 
 int
-ftp_connect(struct url *url, struct url *proxy)
+ftp_connect(struct url *url)
 {
 	const char	*host, *port;
 	int		 ctrl_sock;
@@ -79,15 +79,13 @@ ftp_connect(struct url *url, struct url *proxy)
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "21", sizeof(url->port));
 
-	host = proxy ? proxy->host : url->host;
-	port = proxy ? proxy->port : url->port;
 	if ((ctrl_sock = tcp_connect(host, port)) == -1)
 		return -1;
 
 	if ((ctrl_fp = fdopen(ctrl_sock, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	if (proxy && proxy_connect(ctrl_fp, url, proxy) == -1)
+	if (proxy_getenv() && proxy_connect(ctrl_fp, url) == -1)
 		return -1;
 
 	/* read greeting */

@@ -156,7 +156,7 @@ https_init(void)
 }
 
 int
-https_connect(struct url *url, struct url *proxy)
+https_connect(struct url *url)
 {
 	static struct tls_config	*tls_config = NULL;
 	int				 s;
@@ -178,7 +178,7 @@ https_connect(struct url *url, struct url *proxy)
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "443", sizeof(url->port));
 
-	if ((s = http_connect(url, proxy)) == -1)
+	if ((s = http_connect(url)) == -1)
 		return -1;
 
 	if (tls_connect_socket(ctx, s, url->host) != 0) {

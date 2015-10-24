@@ -51,14 +51,12 @@ struct ftp_ack {
 
 static char		*absolute_url(char *, struct url *);
 static void		 child(int, pid_t, int, char **);
-static int		 download(int, struct ftp_msg *, struct url *,
-			    int, char **);
+static int		 download(int, struct ftp_msg *, int, char **);
 static int		 handle_args(int, char **);
 static const char	*output_filename(const char *);
-static struct url	*proxy_getenv(void);
 static int		 read_message(struct imsgbuf *, struct imsg *, pid_t);
 static void		 send_message(struct imsgbuf *, void *, size_t, int);
-static int		 url_connect(struct url *, struct url *);
+static int		 url_connect(struct url *);
 static int		 url_get(struct url *, off_t, struct http_hdrs *);
 static void		 url_parse(const char *, struct url *);
 static void		 url_retr(int, int, off_t, off_t);
@@ -125,28 +123,6 @@ main(int argc, char *argv[])
 #endif
 
 	return handle_args(argc, argv);
-}
-
-static struct url *
-proxy_getenv(void)
-{
-	static struct url	 proxy;
-	char			*proxy_str;
-
-	if ((proxy_str = getenv("http_proxy")) != NULL && *proxy_str == '\0')
-		proxy_str = NULL;
-
-	if (proxy_str == NULL)
-		return NULL;
-
-	url_parse(proxy_str, &proxy);
-	if (proxy.scheme != HTTP)
-		errx(1, "Invalid proxy scheme: %s", proxy_str);
-
-	if (proxy.port[0] == '\0')
-		(void)strlcpy(proxy.port, "80", sizeof(proxy.port));
-
-	return &proxy;
 }
 
 static int
@@ -228,9 +204,7 @@ child(int fd, pid_t parent, int argc, char **argv)
 	struct imsg	 imsg;
 	struct ftp_msg	*msg;
 	struct ftp_ack	 ack;
-	struct url	*proxy;
 
-	proxy = proxy_getenv();
 	if (pledge("dns inet stdio tty recvfd", NULL) == -1)
 		err(1, "%s: pledge", __func__);
 
@@ -248,7 +222,7 @@ child(int fd, pid_t parent, int argc, char **argv)
 		msg = imsg.data;
 		memset(&ack, 0, sizeof ack);
 		ack.idx = msg->idx;
-		ack.code = download(imsg.fd, msg, proxy, argc, argv);
+		ack.code = download(imsg.fd, msg, argc, argv);
 		imsg_free(&imsg);
 		send_message(&ibuf, &ack, sizeof ack, -1);
 	}
@@ -257,7 +231,7 @@ child(int fd, pid_t parent, int argc, char **argv)
 }
 
 static int
-download(int fd, struct ftp_msg *msg, struct url *proxy, int argc, char **argv)
+download(int fd, struct ftp_msg *msg, int argc, char **argv)
 {
 	struct http_hdrs	 res_hdrs;
 	struct url		 url;
@@ -269,10 +243,10 @@ redirected:
 	url_str = url_encode(argv[idx]);
 	url_parse(url_str, &url);
 	free(url_str);
-	if (url_connect(&url, proxy) == -1)
+	if (url_connect(&url) == -1)
 		return -1;
 
-	log_request(&url, proxy);
+	log_request(&url);
 	memset(&res_hdrs, 0, sizeof(res_hdrs));
 	code = url_get(&url, offset, &res_hdrs);
 	switch (code) {
@@ -345,6 +319,38 @@ read_message(struct imsgbuf *ibuf, struct imsg *imsg, pid_t from)
 
 }
 
+struct url *
+proxy_getenv(void)
+{
+	static struct url	*proxy = NULL;
+	char			*proxy_str;
+	static int		 inited = 0;
+
+	/* Determine proxy just once */
+	if (inited)
+		return proxy;
+
+	inited = 1;
+	if ((proxy_str = getenv("http_proxy")) != NULL && *proxy_str == '\0')
+		proxy_str = NULL;
+
+	if (proxy_str == NULL)
+		goto err;
+
+	if ((proxy = malloc(sizeof *proxy)) == NULL)
+		err(1, "%s: malloc", __func__);
+
+	url_parse(proxy_str, proxy);
+	if (proxy->scheme != HTTP)
+		errx(1, "Invalid proxy scheme: %s", proxy_str);
+
+	if (proxy->port[0] == '\0')
+		(void)strlcpy(proxy->port, "80", sizeof(proxy->port));
+
+err:
+	return proxy;
+}
+
 static const char *
 output_filename(const char *url_str)
 {
@@ -389,20 +395,20 @@ absolute_url(char *url_str, struct url *orig_url)
 }
 
 static int
-url_connect(struct url *url, struct url *proxy)
+url_connect(struct url *url)
 {
 	int ret;
 
 	switch (url->scheme) {
 	case HTTP:
-		ret = http_connect(url, proxy);
+		ret = http_connect(url);
 		break;
 #ifndef SMALL
 	case HTTPS:
-		ret = https_connect(url, proxy);
+		ret = https_connect(url);
 		break;
 	case FTP:
-		ret = ftp_connect(url, proxy);
+		ret = ftp_connect(url);
 		break;
 #endif
 	default:

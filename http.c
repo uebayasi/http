@@ -32,7 +32,7 @@ static int	 http_response(FILE *, struct http_hdrs *);
 static FILE	*http_fp;
 
 int
-http_connect(struct url *url, struct url *proxy)
+http_connect(struct url *url)
 {
 	const char	*host, *port;
 	int		 s;
@@ -40,22 +40,20 @@ http_connect(struct url *url, struct url *proxy)
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "80", sizeof(url->port));
 
-	host = proxy ? proxy->host : url->host;
-	port = proxy ? proxy->port : url->port;
 	if ((s = tcp_connect(host, port)) == -1)
 		return -1;
 
 	if ((http_fp = fdopen(s, "r+")) == NULL)
 		err(1, "%s: fdopen", __func__);
 
-	if (proxy && proxy_connect(http_fp, url, proxy) == -1)
+	if (proxy_getenv() && proxy_connect(http_fp, url) == -1)
 		return -1;
 
 	return s;
 }
 
 int
-proxy_connect(FILE *fp, struct url *url, struct url *proxy)
+proxy_connect(FILE *fp, struct url *url)
 {
 	int	code;
 

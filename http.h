@@ -38,9 +38,9 @@ extern const char	*ua;
 extern int		 verbose;
 
 /* http.c */
-int	 http_connect(struct url *, struct url *);
+int	 http_connect(struct url *);
 char	*http_parseln(FILE *, size_t *);
-int	 proxy_connect(FILE *, struct url *, struct url *);
+int	 proxy_connect(FILE *, struct url *);
 int	 http_get(off_t, struct url *, struct http_hdrs *);
 void	 http_retr(int, off_t, off_t);
 
@@ -55,24 +55,25 @@ void		 send_cmd(FILE *, const char *, ...)
 		    __attribute__((__format__ (printf, 2, 3)))
 		    __attribute__((__nonnull__ (2)));
 void		 vsend_cmd(FILE *, const char *, va_list);
-void		 log_request(struct url *, struct url *);
+void		 log_request(struct url *);
 void		 retr_file(FILE *, int, off_t, off_t);
 int		 http_response_code(char *);
 char		*url_encode(const char *);
 const char	*http_errstr(int);
 const char	*base64_encode(const char *, const char *);
+struct url	*proxy_getenv(void);
 
 #ifndef SMALL
 /* main.c */
 extern char	*tls_options;
 
 /* https.c */
-int	https_connect(struct url *, struct url *);
+int	https_connect(struct url *);
 int	https_get(off_t, struct url *, struct http_hdrs *);
 void	https_retr(int, off_t, off_t);
 
 /* ftp.c */
-int	ftp_connect(struct url *, struct url *);
+int	ftp_connect(struct url *);
 int	ftp_get(off_t, struct url *);
 void	ftp_command(void);
 void	ftp_retr(int, off_t);
