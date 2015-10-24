@@ -377,6 +377,9 @@ ftp_command(void)
 	const char	*buf, **argv;
 	int		 argc, len;
 
+	if (pledge("dns inet stdio tty cpath rpath wpath", NULL) == -1)
+		err(1, "%s: pledge", __func__);
+
 	if ((el = el_init(getprogname(), stdin, stdout, stderr)) == NULL)
 		errx(1, "%s: el_init failed", __func__);
 

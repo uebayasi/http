@@ -74,7 +74,9 @@ static int		 resume;
 int
 main(int argc, char *argv[])
 {
-	int	ch;
+	struct url	 url;
+	char		*url_str;
+	int		 ch;
 
 	if (pledge("dns inet stdio tty cpath rpath wpath "
 	    "sendfd recvfd proc", NULL) == -1)
@@ -112,10 +114,14 @@ main(int argc, char *argv[])
 	ftp_debug = getenv("FTP_DEBUG") != NULL;
 
 #ifndef SMALL
-	if (argc == 0) {
-		if (pledge("dns inet stdio tty cpath rpath wpath", NULL) == -1)
-			err(1, "%s: pledge", __func__);
-
+	switch (argc) {
+	case 1:
+		url_str = url_encode(argv[0]);
+		url_parse(url_str, &url);
+		free(url_str);
+		ftp_connect(&url);
+		/* FALLTHROUGH */
+	case 0:
 		ftp_command();
 	}
 #else
