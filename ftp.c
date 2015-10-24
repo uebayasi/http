@@ -41,9 +41,11 @@
 #define NEGATIVE_PERM	500
 
 #define	CMD_OPEN	1
-#define	CMD_LS		2
+#define	CMD_CLOSE	2
+#define	CMD_LS		3
 
 static void	 do_open(int, const char **);
+static void	 do_close(int, const char **);
 static void	 do_ls(int, const char **);
 static int	 exec_cmd(int, const char **);
 static char	*ftp_prompt(void);
@@ -63,6 +65,7 @@ struct cmdtab {
 	void		(*handler)(int, const char **);
 } cmdtab[] = {
 { CMD_OPEN,	"open",	0,	"connect to remote ftp server", do_open },
+{ CMD_CLOSE,	"close",0,	"close connection to remote server", do_close },
 { CMD_LS,	"ls",	1,	"list contents of remote directory", do_ls },
 { 0 }
 };
@@ -444,6 +447,19 @@ do_open(int argc, const char **argv)
 	url_parse(url_str, &url);
 	free(url_str);
 	ftp_connect(&url);
+}
+
+static void
+do_close(int argc, const char **argv)
+{
+	if (ctrl_fp == NULL) {
+		fprintf(stderr, "Not connected.\n");
+		return;
+	}
+
+	ftp_send_cmd(NULL, "QUIT");
+	fclose(ctrl_fp);
+	ctrl_fp = NULL;
 }
 
 static void
