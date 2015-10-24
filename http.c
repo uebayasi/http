@@ -34,7 +34,7 @@ static FILE	*http_fp;
 int
 http_connect(struct url *url)
 {
-	int		 s;
+	int	s;
 
 	if (url->port[0] == '\0')
 		(void)strlcpy(url->port, "80", sizeof url->port);

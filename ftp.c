@@ -137,7 +137,7 @@ ftp_get(off_t offset, struct url *url)
 		dir = url->path;
 		*file++ = '\0';
 	}
-		
+
 	if (dir && ftp_send_cmd(NULL, "CWD %s", dir) != POSITIVE_OK)
 		goto err;
 

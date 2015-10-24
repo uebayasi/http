@@ -188,7 +188,7 @@ handle_args(int argc, char **argv)
 			errx(1, "Error retrieving file: %s",
 			    http_errstr(ack->code));
 		}
-			
+
 		close(fd);
 		imsg_free(&imsg);
 	}
@@ -467,7 +467,7 @@ url_retr(int fd, int scheme, off_t file_sz, off_t offset)
 	case FTP:
 		ftp_retr(fd, offset);
 		break;
-#endif 
+#endif
 	default:
 		errx(1, "%s: Invalid scheme", __func__);
 	}
