@@ -141,7 +141,7 @@ handle_args(int argc, char **argv)
 	struct ftp_msg	 msg;
 	struct ftp_ack	*ack;
 	pid_t		 pid, parent;
-	const char	*fn;
+	const char	*fn = NULL;
 	int		 i, fd, flags, pair[2], status;
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, pair) != 0)
@@ -205,7 +205,7 @@ handle_args(int argc, char **argv)
 			err(1, "wait");
 
 	if (WIFSIGNALED(status)) {
-		if (unlink(fn) == -1)
+		if (fn && unlink(fn) == -1)
 			err(1, "unlink");
 
 		errx(1, "child terminated; signal %d", WTERMSIG(status));
