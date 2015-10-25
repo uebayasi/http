@@ -43,9 +43,11 @@
 #define	CMD_OPEN	1
 #define	CMD_CLOSE	2
 #define	CMD_LS		3
+#define CMD_HELP	4
 
 static void	 do_open(int, const char **);
 static void	 do_close(int, const char **);
+static void	 do_help(int, const char **);
 static void	 do_ls(int, const char **);
 static int	 exec_cmd(int, const char **);
 static char	*ftp_prompt(void);
@@ -65,8 +67,9 @@ struct cmdtab {
 	void		(*handler)(int, const char **);
 } cmdtab[] = {
 { CMD_OPEN,	"open",	0,	"connect to remote ftp server", do_open },
-{ CMD_CLOSE,	"close",0,	"close connection to remote server", do_close },
+{ CMD_CLOSE,	"close",1,	"terminate ftp session", do_close },
 { CMD_LS,	"ls",	1,	"list contents of remote directory", do_ls },
+{ CMD_HELP,	"help",	0,	"print local help information", do_help },
 { 0 }
 };
 
@@ -452,11 +455,6 @@ do_open(int argc, const char **argv)
 static void
 do_close(int argc, const char **argv)
 {
-	if (ctrl_fp == NULL) {
-		fprintf(stderr, "Not connected.\n");
-		return;
-	}
-
 	ftp_send_cmd(NULL, "QUIT");
 	fclose(ctrl_fp);
 	ctrl_fp = NULL;
@@ -466,4 +464,22 @@ static void
 do_ls(int argc, const char **argv)
 {
 	errx(1, "not yet");
+}
+
+static void
+do_help(int argc, const char **argv)
+{
+	struct cmdtab	*c;
+
+	/* XXX if argc == 1 list commands */
+	for (c = cmdtab; c->command; c++)
+		if (strcasecmp(argv[1], c->name) == 0)
+			break;
+
+	if (c->command == 0) {
+		fprintf(stderr, "?Invalid help command %s\n", argv[1]);
+		return;
+	}
+
+	fprintf(stderr, "%s\n", c->help);
 }
