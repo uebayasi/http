@@ -209,7 +209,7 @@ handle_args(int argc, char **argv)
 
 			if (code >= 400 && code <= 505) {
 				errx(1, "Error retrieving file: %s",
-			    	    http_errstr(code));
+				    http_errstr(code));
 			}
 		}
 
