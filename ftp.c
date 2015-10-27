@@ -464,8 +464,26 @@ do_open(int argc, const char **argv)
 		return;
 	}
 
-	url_parse(argv[1], &url);
-	ftp_connect(&url);
+	if (argc < 2 || argc > 3) {
+		fprintf(stderr, "usage: open host [port]\n");
+		return;
+	}
+
+	memset(&url, 0, sizeof url);
+	if (strlcpy(url.host, argv[1], sizeof url.host) >= sizeof url.host) {
+		fprintf(stderr, "host too long\n");
+		return;
+	}
+
+	if (argv[2] && strlcpy(url.port, argv[2],
+	    sizeof url.port) >= sizeof url.port) {
+		fprintf(stderr, "port too long\n");
+		return;
+	}
+
+	if (ftp_connect(&url) == -1)
+		return;
+
 	log_info("Using binary mode to transfer files.");
 	if (ftp_send_cmd(NULL, "TYPE I") != POSITIVE_OK) {
 		fprintf(stderr, "Failed to set mode to binary\n");
